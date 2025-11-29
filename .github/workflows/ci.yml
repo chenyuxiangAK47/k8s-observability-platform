@@ -20,23 +20,37 @@ jobs:
     
     - name: Install dependencies
       run: |
-        pip install pytest pytest-asyncio httpx
+        pip install -r requirements-test.txt
         pip install -r user-service/requirements.txt
         pip install -r product-service/requirements.txt
         pip install -r order-service/requirements.txt
+        pip install pytest-cov black flake8
     
-    - name: Run tests (if exists)
+    - name: Check code format with black
       run: |
-        # 如果测试文件存在则运行，否则跳过
-        if [ -d "user-service/tests" ]; then pytest user-service/tests/ || true; fi
-        if [ -d "product-service/tests" ]; then pytest product-service/tests/ || true; fi
-        if [ -d "order-service/tests" ]; then pytest order-service/tests/ || true; fi
+        # 检查代码格式（不修改，只检查）
+        black --check user-service/ product-service/ order-service/ || true
       continue-on-error: true
     
-    - name: Check code format
+    - name: Lint with flake8
       run: |
-        # 简单的语法检查
-        python -m py_compile user-service/*.py product-service/*.py order-service/*.py || true
+        # 代码风格检查（忽略一些常见的警告）
+        flake8 user-service/ product-service/ order-service/ --max-line-length=120 --ignore=E501,W503 || true
+      continue-on-error: true
+    
+    - name: Run unit tests
+      run: |
+        # 运行单元测试并生成覆盖率报告
+        pytest user-service/tests/ product-service/tests/ order-service/tests/ \
+          --cov=user-service --cov=product-service --cov=order-service \
+          --cov-report=term-missing --cov-report=html || true
+      continue-on-error: true
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.xml
+        fail_ci_if_error: false
       continue-on-error: true
 
   build:

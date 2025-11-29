@@ -9,6 +9,7 @@ from models import Order
 from schemas import OrderCreate, OrderRead
 from http_client import get_user_service_client, get_product_service_client
 from messaging import publish_order_created
+from circuit_breaker import get_user_service_circuit_breaker, get_product_service_circuit_breaker
 
 # 配置日志：记录服务间调用的详细信息
 # 这样出问题时，可以通过日志快速定位：调用了哪个服务、花了多长时间、是否成功
@@ -52,10 +53,15 @@ def create_order(
     
     # 1. 验证用户存在（调用用户服务）
     # 使用封装好的 HTTP 客户端，自动处理超时、重试、日志
+    # 通过熔断器保护：如果用户服务持续失败，快速失败，避免浪费资源
     user_client = get_user_service_client()
+    circuit_breaker = get_user_service_circuit_breaker()
     
     try:
-        user_response = user_client.get(f"/{order.user_id}")
+        # 通过熔断器调用：如果熔断器打开，直接返回错误
+        user_response = circuit_breaker.call(
+            lambda: user_client.get(f"/{order.user_id}")
+        )
         
         # 根据状态码判断错误类型
         if user_response.status_code == 404:
@@ -95,12 +101,25 @@ def create_order(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="User service network error"
         )
+    except Exception as e:
+        # 熔断器打开或其他异常
+        if "Circuit breaker is OPEN" in str(e):
+            logger.error("用户服务熔断器打开，快速失败")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="User service circuit breaker is OPEN"
+            )
+        raise
     
     # 2. 验证产品存在（调用商品服务）
+    # 同样使用熔断器保护
     product_client = get_product_service_client()
+    product_circuit_breaker = get_product_service_circuit_breaker()
     
     try:
-        product_response = product_client.get(f"/{order.product_id}")
+        product_response = product_circuit_breaker.call(
+            lambda: product_client.get(f"/{order.product_id}")
+        )
         
         if product_response.status_code == 404:
             raise HTTPException(
@@ -133,6 +152,15 @@ def create_order(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Product service network error"
         )
+    except Exception as e:
+        # 熔断器打开或其他异常
+        if "Circuit breaker is OPEN" in str(e):
+            logger.error("商品服务熔断器打开，快速失败")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Product service circuit breaker is OPEN"
+            )
+        raise
     
     # 3. 检查库存（业务逻辑）
     if product_data["stock"] < order.quantity:

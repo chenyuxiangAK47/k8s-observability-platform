@@ -36,6 +36,12 @@ ORDER_EVENTS_QUEUE = os.getenv(
     "PRODUCT_ORDER_QUEUE",
     "product-service.order-consumer",
 )
+# 死信队列（Dead Letter Queue）：处理失败的消息
+# 为什么需要死信队列？
+# - 如果消息处理失败（如数据库错误、业务逻辑错误），不能无限重试
+# - 把失败的消息放到死信队列，后续可以人工处理或自动补偿
+DLQ_NAME = os.getenv("DLQ_NAME", "product-service.dlq")
+MAX_RETRIES = int(os.getenv("MAX_RETRY_COUNT", "3"))  # 最大重试次数
 
 # 运行中的连接和消费线程，用于优雅关闭
 _connection: Optional[pika.BlockingConnection] = None
@@ -92,7 +98,20 @@ def _consume_loop() -> None:
                 exchange_type="fanout",
                 durable=True,
             )
-            channel.queue_declare(queue=ORDER_EVENTS_QUEUE, durable=True)
+            # 声明死信队列
+            channel.queue_declare(queue=DLQ_NAME, durable=True)
+            
+            # 声明主队列，并绑定死信队列
+            # 如果消息被拒绝（reject）且 requeue=False，会被路由到死信队列
+            channel.queue_declare(
+                queue=ORDER_EVENTS_QUEUE,
+                durable=True,
+                arguments={
+                    "x-dead-letter-exchange": "",  # 使用默认 exchange
+                    "x-dead-letter-routing-key": DLQ_NAME,  # 路由到死信队列
+                    "x-message-ttl": 60000,  # 消息 TTL：60 秒（可选）
+                }
+            )
             channel.queue_bind(
                 queue=ORDER_EVENTS_QUEUE,
                 exchange=ORDER_EVENTS_EXCHANGE,
@@ -102,12 +121,57 @@ def _consume_loop() -> None:
             channel.basic_qos(prefetch_count=1)
 
             def _on_message(ch, method, properties, body):
+                """
+                消息处理回调
+                
+                容错策略：
+                1. 如果处理成功，ack 消息
+                2. 如果处理失败，检查重试次数：
+                   - 如果未达到最大重试次数，nack 并 requeue（重新入队）
+                   - 如果达到最大重试次数，发送到死信队列
+                """
+                retry_count = 0
+                if properties.headers:
+                    retry_count = properties.headers.get("x-retry-count", 0)
+                
                 try:
                     _handle_order_event(body)
+                    # 处理成功，确认消息
                     ch.basic_ack(delivery_tag=method.delivery_tag)
-                except Exception as exc:  # pragma: no cover - demo 场景
-                    logger.exception("处理订单事件失败，将丢弃该消息：%s", exc)
-                    ch.basic_ack(delivery_tag=method.delivery_tag)
+                    logger.info("消息处理成功：delivery_tag=%s", method.delivery_tag)
+                except Exception as exc:
+                    logger.exception("处理订单事件失败：%s", exc)
+                    
+                    if retry_count < MAX_RETRIES:
+                        # 未达到最大重试次数，重新入队
+                        retry_count += 1
+                        logger.warning(
+                            "消息处理失败，重试 %d/%d：delivery_tag=%s",
+                            retry_count,
+                            MAX_RETRIES,
+                            method.delivery_tag
+                        )
+                        # nack 并 requeue=True，消息会重新入队
+                        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                    else:
+                        # 达到最大重试次数，发送到死信队列
+                        logger.error(
+                            "消息达到最大重试次数，发送到死信队列：delivery_tag=%s, retry_count=%d",
+                            method.delivery_tag,
+                            retry_count
+                        )
+                        # 发送到死信队列
+                        ch.basic_publish(
+                            exchange="",
+                            routing_key=DLQ_NAME,
+                            body=body,
+                            properties=pika.BasicProperties(
+                                headers={"x-original-retry-count": retry_count},
+                                delivery_mode=2,  # 持久化
+                            )
+                        )
+                        # 确认原消息（避免重复处理）
+                        ch.basic_ack(delivery_tag=method.delivery_tag)
 
             logger.info("订单事件消费者已就绪，等待消息…")
             channel.basic_consume(
