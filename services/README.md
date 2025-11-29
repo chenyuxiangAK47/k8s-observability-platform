@@ -52,3 +52,4 @@ export OTEL_SERVICE_NAME=order-service
 - User Service: http://localhost:8002/metrics
 
 
+

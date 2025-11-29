@@ -20,12 +20,12 @@ route:
 receivers:
   - name: 'default-receiver'
     webhook_configs:
-      - url: 'http://host.docker.internal:5000/webhook/alert'
+      - url: 'http://auto-heal-bot:5000/webhook/alert'
         send_resolved: true
 
   - name: 'critical-alerts'
     webhook_configs:
-      - url: 'http://host.docker.internal:5000/webhook/alert'
+      - url: 'http://auto-heal-bot:5000/webhook/alert'
         send_resolved: true
     # 可以添加 Slack、邮件等通知渠道
     # slack_configs:
@@ -34,7 +34,8 @@ receivers:
 
   - name: 'warning-alerts'
     webhook_configs:
-      - url: 'http://host.docker.internal:5000/webhook/alert'
+      - url: 'http://auto-heal-bot:5000/webhook/alert'
         send_resolved: true
+
 
 

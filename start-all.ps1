@@ -215,3 +215,4 @@ Write-Host "  - 微服务在后台运行，日志在 services\logs\ 目录" -For
 Write-Host "`n按任意键退出..." -ForegroundColor Gray
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 
+

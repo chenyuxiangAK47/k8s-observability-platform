@@ -92,6 +92,22 @@ services:
     networks:
       - observability
 
+  # Auto-Heal Bot - 自动修复机器人
+  auto-heal-bot:
+    build:
+      context: ./auto-heal-bot
+      dockerfile: Dockerfile
+    container_name: auto-heal-bot
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+    depends_on:
+      - alertmanager
+    networks:
+      - observability
+    # 注意：需要访问宿主机服务时，可能需要使用 host.docker.internal
+
 volumes:
   prometheus_data:
   grafana_data:
