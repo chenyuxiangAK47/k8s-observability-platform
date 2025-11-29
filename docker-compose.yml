@@ -1,82 +1,104 @@
+version: '3.8'
+
 services:
-  microshop-postgres:
-    image: postgres:15
-    container_name: microshop-postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+  # Prometheus - 指标采集
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
     ports:
-      - "5432:5432"
+      - "9090:9090"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      # 挂载初始化 SQL：在同一台 Postgres 上创建 users_db / products_db / orders_db 三个独立数据库
-      # 这样每个微服务拥有自己的数据库，更符合“数据自治”的微服务设计
-      - ./db-init:/docker-entrypoint-initdb.d
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - observability
 
-  microshop-redis:
-    image: redis:7
-    container_name: microshop-redis
+  # Grafana - 可视化平台
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
     ports:
-      - "6379:6379"
-
-  microshop-rabbitmq:
-    image: rabbitmq:3-management
-    container_name: microshop-rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-
-  user-service:
-    build: ./user-service
-    container_name: user-service
+      - "3000:3000"
     environment:
-      # user-service 只访问自己的 users_db，而不是和其他服务共享一个 DB
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@microshop-postgres:5432/users_db
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
     depends_on:
-      - microshop-postgres
-    ports:
-      - "8001:8000"
+      - prometheus
+      - loki
+      - jaeger
+    networks:
+      - observability
 
-  product-service:
-    build: ./product-service
-    container_name: product-service
-    environment:
-      # product-service 只访问 products_db，用于管理商品/库存数据
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@microshop-postgres:5432/products_db
-      # MQ 配置：监听订单事件后扣减库存
-      RABBITMQ_URL: amqp://guest:guest@microshop-rabbitmq:5672/
-      ORDER_EVENTS_EXCHANGE: order.events
-      PRODUCT_ORDER_QUEUE: product-service.order-consumer
-    depends_on:
-      - microshop-postgres
+  # Loki - 日志聚合
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
     ports:
-      - "8002:8000"
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - observability
 
-  order-service:
-    build: ./order-service
-    container_name: order-service
-    environment:
-      # order-service 只访问 orders_db，避免直接跨服务 JOIN，强制通过 API 协作
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@microshop-postgres:5432/orders_db
-      # HTTP 客户端配置（可选，如果不配置就用代码里的默认值）
-      # 这样可以在不同环境（开发/测试/生产）用不同配置，不需要改代码
-      USER_SERVICE_URL: http://user-service:8000/api/users
-      PRODUCT_SERVICE_URL: http://product-service:8000/api/products
-      # 超时时间（秒）：如果下游服务超过这个时间没响应，就放弃等待
-      USER_SERVICE_TIMEOUT: "3.0"
-      PRODUCT_SERVICE_TIMEOUT: "3.0"
-      # 最大重试次数：网络抖动时自动重试
-      USER_SERVICE_MAX_RETRIES: "3"
-      PRODUCT_SERVICE_MAX_RETRIES: "3"
-      # MQ 配置：订单服务只负责发布事件，库存等逻辑交给其他服务
-      RABBITMQ_URL: amqp://guest:guest@microshop-rabbitmq:5672/
-      ORDER_EVENTS_EXCHANGE: order.events
-    depends_on:
-      - microshop-postgres
-      - user-service
-      - product-service
+  # Promtail - 日志采集器（暂时注释，Windows 路径问题）
+  # promtail:
+  #   image: grafana/promtail:latest
+  #   container_name: promtail
+  #   volumes:
+  #     - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+  #     - ./services/logs:/var/log/apps:ro
+  #   command: -config.file=/etc/promtail/config.yml
+  #   depends_on:
+  #     - loki
+  #   networks:
+  #     - observability
+
+  # Jaeger - 分布式追踪
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
     ports:
-      - "8003:8000"
+      - "16686:16686"  # UI
+      - "14268:14268"  # HTTP collector
+      - "6831:6831/udp"  # UDP collector
+      - "6832:6832/udp"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - observability
+
+  # Alertmanager - 告警管理
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    depends_on:
+      - prometheus
+    networks:
+      - observability
 
 volumes:
-  postgres-data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  observability:
+    driver: bridge
+
+

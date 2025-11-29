@@ -1,8 +1,0 @@
-fastapi  
-uvicorn  
-sqlalchemy  
-psycopg2-binary  
-requests  
-httpx
-tenacity  # 用于 HTTP 重试：网络抖动时自动重试，提高服务间调用的健壮性
-pika  # RabbitMQ 客户端，让订单服务可以发布事件

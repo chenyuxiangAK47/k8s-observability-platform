@@ -1,7 +1,0 @@
-fastapi  
-uvicorn  
-sqlalchemy  
-psycopg2-binary  
-requests  
-httpx 
-pika  # RabbitMQ 客户端，商品服务通过它订阅订单事件
