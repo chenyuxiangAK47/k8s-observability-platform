@@ -1,0 +1,106 @@
+# Default values for microservices
+namespace: microservices
+
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# User Service configuration
+userService:
+  enabled: true
+  image:
+    repository: user-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 8001
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# Product Service configuration
+productService:
+  enabled: true
+  image:
+    repository: product-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 8002
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# Order Service configuration
+orderService:
+  enabled: true
+  image:
+    repository: order-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 8003
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# OpenTelemetry configuration
+opentelemetry:
+  enabled: true
+  collector:
+    endpoint: "http://jaeger-collector.observability.svc.cluster.local:4317"
+
+# Database configuration
+database:
+  host: postgres.microservices.svc.cluster.local
+  port: 5432
+  user: user
+  password: password
+
+# RabbitMQ configuration
+rabbitmq:
+  host: rabbitmq.microservices.svc.cluster.local
+  port: 5672
+  user: guest
+  password: guest
+
+
+
+

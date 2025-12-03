@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: microservices-metrics
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: microservices
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: microservices
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}
+
+
+
+

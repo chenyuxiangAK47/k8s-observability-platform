@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql
+  namespace: microservices
+spec:
+  serviceName: postgresql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      containers:
+      - name: postgresql
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+          name: postgresql
+        env:
+        - name: POSTGRES_USER
+          value: "user"
+        - name: POSTGRES_PASSWORD
+          value: "password"
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: postgresql-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U user
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U user
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      initContainers:
+      - name: init-db-script
+        image: postgres:15-alpine
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # 创建初始化脚本目录
+          mkdir -p /docker-entrypoint-initdb.d
+          # 创建数据库初始化脚本
+          cat > /docker-entrypoint-initdb.d/init-multiple-databases.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          function create_database() {
+              local database=$1
+              echo "Creating database: $database"
+              psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+                  CREATE DATABASE $database;
+          EOSQL
+          }
+          
+          create_database users_db
+          create_database products_db
+          create_database orders_db
+          
+          echo "All databases created successfully"
+          EOF
+          chmod +x /docker-entrypoint-initdb.d/init-multiple-databases.sh
+          # 将脚本复制到共享卷
+          cp -r /docker-entrypoint-initdb.d /var/lib/postgresql/data/ || true
+        volumeMounts:
+        - name: postgresql-storage
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgresql-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: microservices
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgresql
+  selector:
+    app: postgresql
+

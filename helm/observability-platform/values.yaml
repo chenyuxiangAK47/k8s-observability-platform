@@ -1,0 +1,74 @@
+# Default values for observability-platform
+namespace: observability
+
+# Loki configuration
+loki:
+  enabled: true
+  loki:
+    auth_enabled: false
+    commonConfig:
+      replication_factor: 1
+    storage:
+      type: filesystem
+  singleBinary:
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 10Gi
+
+# Promtail configuration
+promtail:
+  enabled: true
+  config:
+    clients:
+      - url: http://loki-gateway:80/loki/api/v1/push
+
+# Jaeger configuration
+jaeger:
+  enabled: true
+  storage:
+    type: memory
+    memory:
+      maxTraces: 50000
+  agent:
+    replicas: 1
+  collector:
+    replicas: 1
+  query:
+    replicas: 1
+
+# Grafana configuration
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: admin
+  persistence:
+    enabled: true
+    size: 10Gi
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://prometheus-operator-kube-prom-prometheus.monitoring.svc.cluster.local:9090
+          isDefault: true
+        - name: Loki
+          type: loki
+          access: proxy
+          url: http://loki-gateway:80
+        - name: Jaeger
+          type: jaeger
+          access: proxy
+          url: http://jaeger-query:16686
+
+# ServiceMonitor for Prometheus Operator
+serviceMonitor:
+  enabled: true
+  labels:
+    release: prometheus-operator
+
+
+
+

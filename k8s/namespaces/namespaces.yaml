@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    name: observability
+    purpose: observability-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: microservices
+  labels:
+    name: microservices
+    purpose: microservices-deployment
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    purpose: prometheus-operator
+
+
+
+

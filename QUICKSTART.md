@@ -1,183 +1,243 @@
-# 🚀 快速开始指南
+# 快速开始指南
 
-> **5 分钟启动全链路可观测性平台**
+## 🚀 5分钟快速部署
 
----
+### 前置要求
 
-## 📋 前置要求
+- Docker Desktop 运行中
+- kubectl 已安装
+- Helm 3.x 已安装
 
-- ✅ Docker Desktop（Windows/Mac）或 Docker Engine（Linux）
-- ✅ Python 3.9+
-- ✅ 8GB+ 内存（推荐）
-- ✅ 10GB+ 磁盘空间
+### 一键部署（推荐）
 
----
-
-## 🎯 快速启动（3 步）
-
-### Step 1: 启动基础设施
-
-**Windows:**
 ```bash
-start.bat
+# 1. 创建本地 Kubernetes 集群（使用 kind）
+kind create cluster --name observability-platform
+
+# 2. 运行部署脚本
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
 ```
 
-**Linux/Mac:**
+### 手动部署步骤
+
+如果一键部署失败，可以按照以下步骤手动部署：
+
+#### 步骤 1: 创建命名空间
+
 ```bash
-chmod +x start.sh
-./start.sh
+kubectl apply -f k8s/namespaces/
 ```
 
-**或者手动启动:**
+#### 步骤 2: 安装 Prometheus Operator
+
 ```bash
-docker-compose up -d
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm install prometheus-operator prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace \
+  --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+  --set grafana.adminPassword=admin
 ```
 
-### Step 2: 安装 Python 依赖
+#### 步骤 3: 部署基础设施
 
 ```bash
-cd services
-pip install -r requirements.txt
+# 部署数据库
+kubectl apply -f k8s/database/postgresql.yaml
+
+# 部署消息队列
+kubectl apply -f k8s/messaging/rabbitmq.yaml
+
+# 创建 Secrets
+kubectl create secret generic database-secrets \
+  --from-literal=user-db-url="postgresql://user:password@postgresql.microservices.svc.cluster.local:5432/users_db" \
+  --from-literal=product-db-url="postgresql://user:password@postgresql.microservices.svc.cluster.local:5432/products_db" \
+  --from-literal=order-db-url="postgresql://user:password@postgresql.microservices.svc.cluster.local:5432/orders_db" \
+  -n microservices
+
+kubectl create secret generic rabbitmq-secrets \
+  --from-literal=url="amqp://guest:guest@rabbitmq.microservices.svc.cluster.local:5672/" \
+  -n microservices
 ```
 
-### Step 3: 启动微服务
+#### 步骤 4: 部署可观测性平台
 
-**终端 1 - 订单服务:**
 ```bash
-cd services
-python order_service/main.py
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+helm repo update
+
+cd helm/observability-platform
+helm dependency update
+cd ../..
+
+helm install observability-platform ./helm/observability-platform \
+  --namespace observability \
+  --create-namespace
 ```
 
-**终端 2 - 商品服务:**
+#### 步骤 5: 部署微服务
+
 ```bash
-cd services
-python product_service/main.py
+helm install microservices ./helm/microservices \
+  --namespace microservices \
+  --create-namespace
 ```
 
-**终端 3 - 用户服务:**
+#### 步骤 6: 配置监控和自动扩缩容
+
 ```bash
-cd services
-python user_service/main.py
+kubectl apply -f k8s/monitoring/
+kubectl apply -f k8s/autoscaling/
 ```
 
----
+## 📊 访问服务
 
-## 🌐 访问服务
+### 端口转发
 
-| 服务 | 地址 | 默认账号 |
-|------|------|---------|
-| **Grafana** | http://localhost:3000 | admin/admin |
-| **Prometheus** | http://localhost:9090 | - |
-| **Jaeger** | http://localhost:16686 | - |
-| **Loki** | http://localhost:3100 | - |
-
----
-
-## 🧪 测试系统
-
-### 1. 生成一些流量
+在单独的终端窗口中运行：
 
 ```bash
-# 使用 curl 或 Python requests
-curl http://localhost:8000/orders/123
-curl http://localhost:8001/products/1
-curl http://localhost:8002/users/1
+# Grafana
+kubectl port-forward -n monitoring svc/prometheus-operator-grafana 3000:80
 
-# 创建订单（会触发跨服务调用）
-curl -X POST http://localhost:8000/orders \
+# Prometheus
+kubectl port-forward -n monitoring svc/prometheus-operator-kube-prom-prometheus 9090:9090
+
+# Jaeger
+kubectl port-forward -n observability svc/jaeger-query 16686:16686
+
+# 微服务
+kubectl port-forward -n microservices svc/user-service 8001:8001
+kubectl port-forward -n microservices svc/product-service 8002:8002
+kubectl port-forward -n microservices svc/order-service 8003:8003
+```
+
+### 访问地址
+
+- **Grafana**: http://localhost:3000 (用户名: `admin`, 密码: `admin`)
+- **Prometheus**: http://localhost:9090
+- **Jaeger**: http://localhost:16686
+- **User Service**: http://localhost:8001
+- **Product Service**: http://localhost:8002
+- **Order Service**: http://localhost:8003
+
+## ✅ 验证部署
+
+### 检查 Pod 状态
+
+```bash
+kubectl get pods -A
+```
+
+所有 Pod 应该显示 `Running` 状态。
+
+### 测试微服务
+
+```bash
+# 创建用户
+curl -X POST http://localhost:8001/api/users \
   -H "Content-Type: application/json" \
-  -d '{"user_id": 1, "product_id": 1}'
+  -d '{"email": "test@example.com", "name": "Test User", "password": "123456"}'
+
+# 创建商品
+curl -X POST http://localhost:8002/api/products/ \
+  -H "Content-Type: application/json" \
+  -d '{"name": "MacBook Pro", "description": "Laptop", "price": 12999.0, "stock": 50}'
+
+# 创建订单
+curl -X POST http://localhost:8003/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 1, "product_id": 1, "quantity": 3}'
 ```
 
-### 2. 查看 Grafana Dashboard
+### 查看追踪
 
-1. 访问 http://localhost:3000
-2. 登录（admin/admin）
-3. 进入 **Dashboards** → **Observability** → **Services Overview**
+1. 打开 Jaeger UI: http://localhost:16686
+2. 选择服务 `order-service`
+3. 点击 "Find Traces"
+4. 你应该能看到完整的调用链
 
-### 3. 查看 Jaeger 追踪
+## 🔧 故障排查
 
-1. 访问 http://localhost:16686
-2. 选择服务：`order-service`
-3. 点击 **Find Traces**
-4. 查看完整的调用链
+### Pod 无法启动
 
-### 4. 查看 Prometheus 指标
-
-1. 访问 http://localhost:9090
-2. 在查询框输入：`http_requests_total`
-3. 点击 **Execute**
-
----
-
-## 🔍 验证清单
-
-- [ ] Docker 容器都在运行：`docker-compose ps`
-- [ ] 微服务可以访问：`curl http://localhost:8000/health`
-- [ ] Prometheus 能采集指标：访问 http://localhost:9090，查询 `up`
-- [ ] Grafana 能显示 Dashboard
-- [ ] Jaeger 能显示追踪
-- [ ] 日志文件生成：`ls services/logs/`
-
----
-
-## 🐛 常见问题
-
-### Q: Docker 容器启动失败
-
-**A:** 检查端口是否被占用：
 ```bash
-# Windows
-netstat -ano | findstr :3000
+# 查看 Pod 日志
+kubectl logs -n microservices <pod-name>
 
-# Linux/Mac
-lsof -i :3000
+# 查看 Pod 描述
+kubectl describe pod -n microservices <pod-name>
 ```
 
-### Q: 微服务无法连接 Prometheus
+### 服务无法连接
 
-**A:** 确保 Prometheus 容器已启动，检查网络配置：
 ```bash
-docker network ls
-docker network inspect observability-platform_observability
+# 检查 Service
+kubectl get svc -n microservices
+
+# 检查 Endpoints
+kubectl get endpoints -n microservices
 ```
 
-### Q: Grafana 显示 "No Data"
+### 监控数据缺失
 
-**A:** 
-1. 检查 Prometheus 数据源配置
-2. 确保微服务已启动并生成指标
-3. 等待 1-2 分钟让数据采集
-
-### Q: TraceID 无法关联
-
-**A:** 确保 OpenTelemetry 配置正确，检查环境变量：
 ```bash
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+# 检查 ServiceMonitor
+kubectl get servicemonitor -n microservices
+
+# 检查 Prometheus Targets
+# 在 Prometheus UI 中访问: http://localhost:9090/targets
 ```
 
----
+## 🧹 清理
+
+```bash
+# 删除 Helm releases
+helm uninstall microservices -n microservices
+helm uninstall observability-platform -n observability
+helm uninstall prometheus-operator -n monitoring
+
+# 删除命名空间
+kubectl delete namespace microservices observability monitoring
+
+# 删除 kind 集群
+kind delete cluster --name observability-platform
+```
 
 ## 📚 下一步
 
-1. **阅读 README.md** - 了解项目架构
-2. **阅读 INTERVIEW_TALKING_POINTS.md** - 准备面试话术
-3. **阅读 PROJECT_ROADMAP.md** - 了解扩展计划
-4. **自定义 Dashboard** - 在 Grafana 中创建自己的 Dashboard
-5. **添加告警** - 配置告警规则和通知
+### 🎯 立即行动
 
----
+1. **运行部署脚本**
+   ```bash
+   # Windows
+   .\scripts\setup-and-deploy.ps1
+   
+   # Linux/Mac
+   ./scripts/setup-and-deploy.sh
+   ```
 
-## 💡 提示
+2. **验证部署**
+   ```bash
+   # Windows
+   .\scripts\verify-deployment.ps1
+   
+   # Linux/Mac
+   ./scripts/verify-deployment.sh
+   ```
 
-- **首次启动**：等待 1-2 分钟让所有服务完全启动
-- **查看日志**：`docker-compose logs -f [service_name]`
-- **重启服务**：`docker-compose restart [service_name]`
-- **停止所有**：`docker-compose down`
+3. **测试微服务功能**（参考 [NEXT_STEPS.md](NEXT_STEPS.md)）
 
----
+### 📖 深入学习
 
-**祝你使用愉快！🎉**
-
-
+- 查看 [NEXT_STEPS.md](NEXT_STEPS.md) - 详细的下一步行动指南
+- 查看 [BUILD_AND_DEPLOY.md](BUILD_AND_DEPLOY.md) - 构建和部署详解
+- 查看 [LEARNING_NOTES.md](LEARNING_NOTES.md) - 学习笔记（为什么这么做）
+- 查看 [部署文档](docs/DEPLOYMENT.md) - 详细部署步骤
+- 查看 [OpenTelemetry 集成指南](docs/OPENTELEMETRY.md) - 追踪配置
+- 查看 [README](README.md) - 项目架构
 
