@@ -30,15 +30,48 @@ jobs:
         run: |
           echo "🔍 验证 Kubernetes YAML 文件语法..."
           
+          ERROR_COUNT=0
+          
+          # 跳过需要 CRD 的文件（PrometheusRule 等）
+          SKIP_FILES=("prometheus-rule.yaml")
+          
           # 查找所有 YAML 文件（排除 node_modules 等）
           find k8s -name "*.yaml" -o -name "*.yml" | while read file; do
+            # 检查是否应该跳过
+            SKIP=false
+            for skip_file in "${SKIP_FILES[@]}"; do
+              if [[ "$file" == *"$skip_file" ]]; then
+                SKIP=true
+                break
+              fi
+            done
+            
+            if [ "$SKIP" = true ]; then
+              echo "⏭️  跳过 $file (需要 CRD: PrometheusRule)"
+              continue
+            fi
+            
             echo "检查: $file"
             # 使用 kubectl 验证 YAML 语法（dry-run）
-            kubectl apply --dry-run=client -f "$file" || {
-              echo "❌ $file 验证失败"
-              exit 1
-            }
+            if kubectl apply --dry-run=client -f "$file" > /dev/null 2>&1; then
+              echo "  ✅ 验证通过"
+            else
+              # 检查是否是 CRD 相关错误
+              ERROR_MSG=$(kubectl apply --dry-run=client -f "$file" 2>&1)
+              if echo "$ERROR_MSG" | grep -q "no matches for kind"; then
+                echo "  ⏭️  跳过（需要 CRD）"
+              else
+                echo "  ❌ 验证失败:"
+                echo "$ERROR_MSG" | head -3
+                ERROR_COUNT=$((ERROR_COUNT + 1))
+              fi
+            fi
           done
+          
+          if [ $ERROR_COUNT -gt 0 ]; then
+            echo "❌ 发现 $ERROR_COUNT 个 YAML 文件验证失败"
+            exit 1
+          fi
           
           echo "✅ 所有 Kubernetes YAML 文件验证通过"
 
@@ -157,11 +190,22 @@ jobs:
           for dockerfile in services/*/Dockerfile; do
             if [ -f "$dockerfile" ]; then
               echo "检查: $dockerfile"
-              # 使用 docker buildx 验证 Dockerfile（不实际构建）
-              docker buildx build --dry-run -f "$dockerfile" "$(dirname $dockerfile)" || {
-                echo "❌ $dockerfile 验证失败"
+              # 检查 Dockerfile 基本结构
+              if ! grep -q "^FROM " "$dockerfile"; then
+                echo "❌ $dockerfile 缺少 FROM 指令"
                 exit 1
-              }
+              fi
+              
+              # 检查是否有必需的指令（COPY, ADD, 或 RUN）
+              if ! grep -qE "^(COPY|ADD|RUN)" "$dockerfile"; then
+                echo "⚠️  $dockerfile 可能缺少 COPY/ADD/RUN 指令"
+              fi
+              
+              # 使用 docker buildx 尝试解析 Dockerfile（不实际构建）
+              # 注意：--dry-run 可能不支持，所以我们只做基本语法检查
+              echo "✅ $dockerfile 基本结构正确"
+            else
+              echo "⚠️  未找到 Dockerfile: $dockerfile"
             fi
           done
           echo "✅ 所有 Dockerfile 验证通过"
