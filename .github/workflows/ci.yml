@@ -52,8 +52,8 @@ jobs:
             fi
             
             echo "检查: $file"
-            # 使用 kubectl 验证 YAML 语法（dry-run）
-            ERROR_MSG=$(kubectl apply --dry-run=client -f "$file" 2>&1)
+            # 使用 kubectl 验证 YAML 语法（只看语法，不连集群）
+            ERROR_MSG=$(kubectl apply --dry-run=client --validate=false -f "$file" 2>&1)
             EXIT_CODE=$?
             
             if [ $EXIT_CODE -eq 0 ]; then
