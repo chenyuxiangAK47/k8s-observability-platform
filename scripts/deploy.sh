@@ -129,3 +129,7 @@ echo "  kubectl get pods -A"
 
 
 
+
+
+
+

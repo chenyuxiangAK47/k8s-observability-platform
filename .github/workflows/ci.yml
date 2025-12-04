@@ -1,19 +1,19 @@
 name: CI/CD Pipeline
 
-# 触发条件：当代码推送到 main/master 分支或创建 PR 时运行
+# Trigger on push to main/master or pull requests
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
 
-# 工作流权限
+# Workflow permissions
 permissions:
   contents: read
   checks: write
 
 jobs:
-  # Job 1: 验证 Kubernetes YAML 文件
+  # Job 1: Validate Kubernetes YAML files (no kubectl, no cluster connection)
   validate-k8s-yaml:
     name: Validate Kubernetes YAML
     runs-on: ubuntu-latest
@@ -25,19 +25,20 @@ jobs:
         run: pip install pyyaml
 
       - name: Validate YAML syntax
+        shell: bash
         run: |
-          echo "🔍 验证 Kubernetes YAML 文件语法..."
+          echo "🔍 Validating Kubernetes YAML file syntax..."
           
-          # 关掉 bash -e，自己控制错误数量
+          # Turn off bash -e, control error count manually
           set +e
           
           ERROR_COUNT=0
-          # 需要跳过的 CRD 类大文件（可选）
+          # Skip CRD files (optional)
           SKIP_FILES=("prometheus-rule.yaml" "service-monitor.yaml")
           
-          # 找出所有 k8s 目录下的 yaml/yml 文件
-          find k8s -name "*.yaml" -o -name "*.yml" | while read file; do
-            # 判断是不是要跳过的文件
+          # Find all yaml/yml files in k8s directory
+          find k8s \( -name "*.yaml" -o -name "*.yml" \) | while read file; do
+            # Check if file should be skipped
             SKIP=false
             for skip_file in "${SKIP_FILES[@]}"; do
               if [[ "$file" == *"$skip_file" ]]; then
@@ -45,44 +46,43 @@ jobs:
                 break
               fi
             done
+            
             if [ "$SKIP" = true ]; then
-              echo "⏭️  跳过 $file (CRD / 大文件)"
+              echo "⏭️  Skipping $file (CRD / large file)"
               continue
             fi
             
-            echo "检查: $file"
+            echo "Checking: $file"
             
-            # 用 Python + PyYAML 做纯语法解析
-            python3 -c "
-import sys, yaml
+            # Use Python + PyYAML for pure syntax parsing (no cluster connection)
+            echo "import sys, yaml
 path = sys.argv[1]
 try:
     with open(path, 'r', encoding='utf-8') as f:
         list(yaml.safe_load_all(f))
     sys.exit(0)
 except Exception as e:
-    print(f'错误: {e}', file=sys.stderr)
-    sys.exit(1)
-" "$file"
+    print(f'Error: {e}', file=sys.stderr)
+    sys.exit(1)" | python3 - "$file"
+            
             EXIT_CODE=$?
             
             if [ $EXIT_CODE -eq 0 ]; then
-              echo "  ✅ 语法验证通过"
+              echo "  ✅ Syntax validation passed"
             else
-              echo "  ❌ YAML 语法错误"
+              echo "  ❌ YAML syntax error"
               ERROR_COUNT=$((ERROR_COUNT + 1))
             fi
           done
           
-          # 统一在最后决定是否让 step 失败
           if [ $ERROR_COUNT -gt 0 ]; then
-            echo "❌ 发现 $ERROR_COUNT 个 YAML 文件验证失败"
+            echo "❌ Found $ERROR_COUNT YAML file validation failures"
             exit 1
           fi
           
-          echo "✅ 所有 Kubernetes YAML 文件验证通过"
+          echo "✅ All Kubernetes YAML files validated successfully"
 
-  # Job 2: 验证 Helm Charts
+  # Job 2: Validate Helm Charts
   validate-helm-charts:
     name: Validate Helm Charts
     runs-on: ubuntu-latest
@@ -104,40 +104,40 @@ except Exception as e:
 
       - name: Lint observability-platform chart
         run: |
-          echo "🔍 验证 observability-platform Helm Chart..."
+          echo "🔍 Validating observability-platform Helm Chart..."
           cd helm/observability-platform
           helm dependency update
           helm lint .
-          echo "✅ observability-platform Chart 验证通过"
+          echo "✅ observability-platform Chart validation passed"
 
       - name: Template observability-platform chart
         run: |
-          echo "🔍 渲染 observability-platform Helm Chart 模板..."
+          echo "🔍 Rendering observability-platform Helm Chart templates..."
           cd helm/observability-platform
           helm template observability-platform . --debug --dry-run > /dev/null || {
-            echo "❌ observability-platform Chart 模板渲染失败"
+            echo "❌ observability-platform Chart template rendering failed"
             exit 1
           }
-          echo "✅ observability-platform Chart 模板渲染成功"
+          echo "✅ observability-platform Chart template rendering succeeded"
 
       - name: Lint microservices chart
         run: |
-          echo "🔍 验证 microservices Helm Chart..."
+          echo "🔍 Validating microservices Helm Chart..."
           cd helm/microservices
           helm lint .
-          echo "✅ microservices Chart 验证通过"
+          echo "✅ microservices Chart validation passed"
 
       - name: Template microservices chart
         run: |
-          echo "🔍 渲染 microservices Helm Chart 模板..."
+          echo "🔍 Rendering microservices Helm Chart templates..."
           cd helm/microservices
           helm template microservices . --debug --dry-run > /dev/null || {
-            echo "❌ microservices Chart 模板渲染失败"
+            echo "❌ microservices Chart template rendering failed"
             exit 1
           }
-          echo "✅ microservices Chart 模板渲染成功"
+          echo "✅ microservices Chart template rendering succeeded"
 
-  # Job 3: 验证 Python 代码（可选）
+  # Job 3: Validate Python code (optional)
   validate-python:
     name: Validate Python Code
     runs-on: ubuntu-latest
@@ -152,35 +152,39 @@ except Exception as e:
 
       - name: Install dependencies
         run: |
-          # 检查每个服务的 requirements.txt 是否存在
+          # Check if requirements.txt exists for each service
           for service in user-service product-service order-service; do
             if [ -f "services/$service/requirements.txt" ]; then
-              echo "安装 $service 依赖..."
+              echo "Installing $service dependencies..."
               pip install -r services/$service/requirements.txt
             fi
           done
-          # 安装代码检查工具
+          # Install code checking tools
           pip install flake8 pylint
 
       - name: Lint Python code
         run: |
-          echo "🔍 检查 Python 代码风格..."
-          # 使用 flake8 检查代码风格（忽略一些常见警告）
-          find services -name "*.py" -exec flake8 {} \; --max-line-length=120 --ignore=E501,W503 || {
-            echo "⚠️  代码风格检查发现问题，但不阻止构建"
-          }
-          echo "✅ Python 代码检查完成"
+          echo "🔍 Checking Python code style..."
+          # Use flake8 to check code style (ignore some common warnings)
+          if [ -d services ]; then
+            flake8 services --max-line-length=120 --ignore=E501,W503 || {
+              echo "⚠️  Code style check found issues, but not blocking build"
+            }
+          fi
+          echo "✅ Python code check completed"
 
       - name: Validate Python syntax
         run: |
-          echo "🔍 验证 Python 语法..."
-          find services -name "*.py" -exec python -m py_compile {} \; || {
-            echo "❌ Python 语法错误"
-            exit 1
-          }
-          echo "✅ 所有 Python 文件语法正确"
+          echo "🔍 Validating Python syntax..."
+          if [ -d services ]; then
+            find services -name "*.py" -exec python -m py_compile {} \; || {
+              echo "❌ Python syntax error"
+              exit 1
+            }
+          fi
+          echo "✅ All Python files have correct syntax"
 
-  # Job 4: 验证 Dockerfile（可选）
+  # Job 4: Validate Dockerfiles (optional)
   validate-dockerfile:
     name: Validate Dockerfiles
     runs-on: ubuntu-latest
@@ -193,31 +197,29 @@ except Exception as e:
 
       - name: Validate Dockerfiles
         run: |
-          echo "🔍 验证 Dockerfile 语法..."
+          echo "🔍 Validating Dockerfile syntax..."
           for dockerfile in services/*/Dockerfile; do
             if [ -f "$dockerfile" ]; then
-              echo "检查: $dockerfile"
-              # 检查 Dockerfile 基本结构
+              echo "Checking: $dockerfile"
+              # Check Dockerfile basic structure
               if ! grep -q "^FROM " "$dockerfile"; then
-                echo "❌ $dockerfile 缺少 FROM 指令"
+                echo "❌ $dockerfile missing FROM instruction"
                 exit 1
               fi
               
-              # 检查是否有必需的指令（COPY, ADD, 或 RUN）
+              # Check if required instructions exist (COPY, ADD, or RUN)
               if ! grep -qE "^(COPY|ADD|RUN)" "$dockerfile"; then
-                echo "⚠️  $dockerfile 可能缺少 COPY/ADD/RUN 指令"
+                echo "⚠️  $dockerfile may be missing COPY/ADD/RUN instructions"
               fi
               
-              # 使用 docker buildx 尝试解析 Dockerfile（不实际构建）
-              # 注意：--dry-run 可能不支持，所以我们只做基本语法检查
-              echo "✅ $dockerfile 基本结构正确"
+              echo "✅ $dockerfile basic structure is correct"
             else
-              echo "⚠️  未找到 Dockerfile: $dockerfile"
+              echo "⚠️  Dockerfile not found: $dockerfile"
             fi
           done
-          echo "✅ 所有 Dockerfile 验证通过"
+          echo "✅ All Dockerfiles validated successfully"
 
-  # Job 5: 检查文档链接（可选）
+  # Job 5: Check documentation (optional)
   check-docs:
     name: Check Documentation
     runs-on: ubuntu-latest
@@ -227,12 +229,12 @@ except Exception as e:
 
       - name: Check Markdown files
         run: |
-          echo "🔍 检查 Markdown 文档..."
-          # 检查是否有明显的 Markdown 语法错误（简单检查）
-          find . -name "*.md" -not -path "./.git/*" -exec grep -l "^# " {} \; | head -5
-          echo "✅ 文档检查完成"
+          echo "🔍 Checking Markdown documentation..."
+          # Simple check for Markdown files with at least one first-level heading
+          find . -name "*.md" -not -path "./.git/*" -exec grep -l "^# " {} \; | head -5 || true
+          echo "✅ Documentation check completed"
 
-  # Job 6: 总结报告
+  # Job 6: Summary report
   ci-summary:
     name: CI Summary
     runs-on: ubuntu-latest
@@ -241,22 +243,21 @@ except Exception as e:
     steps:
       - name: CI Summary
         run: |
-          echo "## 🎉 CI/CD 检查完成" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 检查项 | 状态 |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Kubernetes YAML | ${{ needs.validate-k8s-yaml.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Helm Charts | ${{ needs.validate-helm-charts.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Python Code | ${{ needs.validate-python.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Dockerfiles | ${{ needs.validate-dockerfile.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎉 CI/CD Checks Completed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check Item | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Kubernetes YAML | ${{ needs.validate-k8s-yaml.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Helm Charts | ${{ needs.validate-helm-charts.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Python Code | ${{ needs.validate-python.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Dockerfiles | ${{ needs.validate-dockerfile.result }} |" >> "$GITHUB_STEP_SUMMARY"
           
           if [ "${{ needs.validate-k8s-yaml.result }}" != "success" ] || \
              [ "${{ needs.validate-helm-charts.result }}" != "success" ] || \
              [ "${{ needs.validate-python.result }}" != "success" ] || \
              [ "${{ needs.validate-dockerfile.result }}" != "success" ]; then
-            echo "❌ 部分检查失败，请查看详细日志" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Some checks failed, please check detailed logs" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           else
-            echo "✅ 所有检查通过！" >> $GITHUB_STEP_SUMMARY
+            echo "✅ All checks passed!" >> "$GITHUB_STEP_SUMMARY"
           fi
-

@@ -105,3 +105,7 @@ Write-Host "  kubectl get hpa -A"
 
 
 
+
+
+
+

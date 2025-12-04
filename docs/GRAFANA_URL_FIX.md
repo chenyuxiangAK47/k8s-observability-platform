@@ -77,3 +77,7 @@ http://observability-platform-jaeger-query.observability.svc.cluster.local:80
 
 
 
+
+
+
+
