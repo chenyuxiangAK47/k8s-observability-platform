@@ -53,14 +53,25 @@ jobs:
             
             echo "检查: $file"
             # 使用 kubectl 验证 YAML 语法（只看语法，不连集群）
-            ERROR_MSG=$(kubectl apply --dry-run=client --validate=false -f "$file" 2>&1)
+            # 设置 KUBECONFIG 为空，避免尝试连接集群
+            ERROR_MSG=$(KUBECONFIG=/dev/null kubectl apply --dry-run=client --validate=false -f "$file" 2>&1)
             EXIT_CODE=$?
             
             if [ $EXIT_CODE -eq 0 ]; then
               echo "  ✅ 验证通过"
             else
+              # 检查是否是连接错误（CI 环境中正常，因为不需要连接集群）
+              if echo "$ERROR_MSG" | grep -qE "(connection refused|unable to recognize|dial tcp|connectex)"; then
+                # 如果只是连接错误，使用 Python 验证 YAML 语法
+                if python3 -c "import yaml, sys; list(yaml.safe_load_all(open('$file')))" 2>/dev/null; then
+                  echo "  ✅ 语法验证通过（kubectl 无法连接集群，但 YAML 语法正确）"
+                else
+                  echo "  ❌ YAML 语法错误:"
+                  python3 -c "import yaml, sys; list(yaml.safe_load_all(open('$file')))" 2>&1 | head -5
+                  ERROR_COUNT=$((ERROR_COUNT + 1))
+                fi
               # 检查是否是 CRD 相关错误
-              if echo "$ERROR_MSG" | grep -q "no matches for kind"; then
+              elif echo "$ERROR_MSG" | grep -q "no matches for kind"; then
                 echo "  ⏭️  跳过（需要 CRD）"
               # 检查是否是 Secret/ConfigMap 不存在（这是正常的，因为 CI 环境没有这些资源）
               elif echo "$ERROR_MSG" | grep -qE "(not found|does not exist|secret.*not found|configmap.*not found)"; then
