@@ -13,7 +13,8 @@ permissions:
   checks: write
 
 jobs:
-  # Job 1: Validate Kubernetes YAML files (no kubectl, no cluster connection)
+
+  # Job 1: Validate Kubernetes YAML syntax (no kubectl)
   validate-k8s-yaml:
     name: Validate Kubernetes YAML
     runs-on: ubuntu-latest
@@ -28,17 +29,13 @@ jobs:
         shell: bash
         run: |
           echo "🔍 Validating Kubernetes YAML file syntax..."
-          
-          # Turn off bash -e, control error count manually
+
           set +e
-          
           ERROR_COUNT=0
-          # Skip CRD files (optional)
+
           SKIP_FILES=("prometheus-rule.yaml" "service-monitor.yaml")
-          
-          # Find all yaml/yml files in k8s directory
+
           find k8s \( -name "*.yaml" -o -name "*.yml" \) | while read file; do
-            # Check if file should be skipped
             SKIP=false
             for skip_file in "${SKIP_FILES[@]}"; do
               if [[ "$file" == *"$skip_file" ]]; then
@@ -46,27 +43,18 @@ jobs:
                 break
               fi
             done
-            
+
             if [ "$SKIP" = true ]; then
-              echo "⏭️  Skipping $file (CRD / large file)"
+              echo "⏭️  Skipping $file"
               continue
             fi
-            
+
             echo "Checking: $file"
-            
-            # Use Python + PyYAML for pure syntax parsing (no cluster connection)
-            echo "import sys, yaml
-path = sys.argv[1]
-try:
-    with open(path, 'r', encoding='utf-8') as f:
-        list(yaml.safe_load_all(f))
-    sys.exit(0)
-except Exception as e:
-    print(f'Error: {e}', file=sys.stderr)
-    sys.exit(1)" | python3 - "$file"
-            
+
+            python3 -c "import sys, yaml; path = sys.argv[1]; exec('try:\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        list(yaml.safe_load_all(f))\n    sys.exit(0)\nexcept Exception as e:\n    print(f\"Error: {e}\", file=sys.stderr)\n    sys.exit(1)')" "$file"
+
             EXIT_CODE=$?
-            
+
             if [ $EXIT_CODE -eq 0 ]; then
               echo "  ✅ Syntax validation passed"
             else
@@ -74,12 +62,12 @@ except Exception as e:
               ERROR_COUNT=$((ERROR_COUNT + 1))
             fi
           done
-          
+
           if [ $ERROR_COUNT -gt 0 ]; then
-            echo "❌ Found $ERROR_COUNT YAML file validation failures"
+            echo "❌ Found $ERROR_COUNT YAML validation failures"
             exit 1
           fi
-          
+
           echo "✅ All Kubernetes YAML files validated successfully"
 
   # Job 2: Validate Helm Charts
@@ -92,8 +80,6 @@ except Exception as e:
 
       - name: Install Helm
         uses: azure/setup-helm@v3
-        with:
-          version: 'latest'
 
       - name: Add Helm repositories
         run: |
@@ -104,40 +90,34 @@ except Exception as e:
 
       - name: Lint observability-platform chart
         run: |
-          echo "🔍 Validating observability-platform Helm Chart..."
+          echo "🔍 Linting observability-platform chart..."
           cd helm/observability-platform
           helm dependency update
           helm lint .
-          echo "✅ observability-platform Chart validation passed"
+          echo "✅ Lint OK"
 
       - name: Template observability-platform chart
         run: |
-          echo "🔍 Rendering observability-platform Helm Chart templates..."
+          echo "🔍 Rendering observability-platform templates..."
           cd helm/observability-platform
-          helm template observability-platform . --debug --dry-run > /dev/null || {
-            echo "❌ observability-platform Chart template rendering failed"
-            exit 1
-          }
-          echo "✅ observability-platform Chart template rendering succeeded"
+          helm template observability-platform . --debug --dry-run > /dev/null
+          echo "✅ Template OK"
 
       - name: Lint microservices chart
         run: |
-          echo "🔍 Validating microservices Helm Chart..."
+          echo "🔍 Linting microservices chart..."
           cd helm/microservices
           helm lint .
-          echo "✅ microservices Chart validation passed"
+          echo "✅ Lint OK"
 
       - name: Template microservices chart
         run: |
-          echo "🔍 Rendering microservices Helm Chart templates..."
+          echo "🔍 Rendering microservices templates..."
           cd helm/microservices
-          helm template microservices . --debug --dry-run > /dev/null || {
-            echo "❌ microservices Chart template rendering failed"
-            exit 1
-          }
-          echo "✅ microservices Chart template rendering succeeded"
+          helm template microservices . --debug --dry-run > /dev/null
+          echo "✅ Template OK"
 
-  # Job 3: Validate Python code (optional)
+  # Job 3: Validate Python code
   validate-python:
     name: Validate Python Code
     runs-on: ubuntu-latest
@@ -152,39 +132,31 @@ except Exception as e:
 
       - name: Install dependencies
         run: |
-          # Check if requirements.txt exists for each service
           for service in user-service product-service order-service; do
             if [ -f "services/$service/requirements.txt" ]; then
               echo "Installing $service dependencies..."
               pip install -r services/$service/requirements.txt
             fi
           done
-          # Install code checking tools
           pip install flake8 pylint
 
       - name: Lint Python code
         run: |
-          echo "🔍 Checking Python code style..."
-          # Use flake8 to check code style (ignore some common warnings)
+          echo "🔍 Running flake8..."
           if [ -d services ]; then
-            flake8 services --max-line-length=120 --ignore=E501,W503 || {
-              echo "⚠️  Code style check found issues, but not blocking build"
-            }
+            flake8 services --max-line-length=120 --ignore=E501,W503 || true
           fi
-          echo "✅ Python code check completed"
+          echo "✅ Python lint completed"
 
       - name: Validate Python syntax
         run: |
-          echo "🔍 Validating Python syntax..."
+          echo "🔍 Checking Python syntax..."
           if [ -d services ]; then
-            find services -name "*.py" -exec python -m py_compile {} \; || {
-              echo "❌ Python syntax error"
-              exit 1
-            }
+            find services -name "*.py" -exec python -m py_compile {} \;
           fi
-          echo "✅ All Python files have correct syntax"
+          echo "✅ Python syntax OK"
 
-  # Job 4: Validate Dockerfiles (optional)
+  # Job 4: Validate Dockerfiles
   validate-dockerfile:
     name: Validate Dockerfiles
     runs-on: ubuntu-latest
@@ -195,31 +167,27 @@ except Exception as e:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Validate Dockerfiles
+      - name: Validate Dockerfile syntax
         run: |
-          echo "🔍 Validating Dockerfile syntax..."
+          echo "🔍 Validating Dockerfiles..."
           for dockerfile in services/*/Dockerfile; do
             if [ -f "$dockerfile" ]; then
               echo "Checking: $dockerfile"
-              # Check Dockerfile basic structure
+
               if ! grep -q "^FROM " "$dockerfile"; then
                 echo "❌ $dockerfile missing FROM instruction"
                 exit 1
               fi
-              
-              # Check if required instructions exist (COPY, ADD, or RUN)
+
               if ! grep -qE "^(COPY|ADD|RUN)" "$dockerfile"; then
-                echo "⚠️  $dockerfile may be missing COPY/ADD/RUN instructions"
+                echo "⚠️  $dockerfile missing COPY/ADD/RUN"
               fi
-              
-              echo "✅ $dockerfile basic structure is correct"
-            else
-              echo "⚠️  Dockerfile not found: $dockerfile"
+
+              echo "✅ Structure OK"
             fi
           done
-          echo "✅ All Dockerfiles validated successfully"
 
-  # Job 5: Check documentation (optional)
+  # Job 5: Documentation check
   check-docs:
     name: Check Documentation
     runs-on: ubuntu-latest
@@ -227,36 +195,34 @@ except Exception as e:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check Markdown files
+      - name: Check Markdown
         run: |
-          echo "🔍 Checking Markdown documentation..."
-          # Simple check for Markdown files with at least one first-level heading
-          find . -name "*.md" -not -path "./.git/*" -exec grep -l "^# " {} \; | head -5 || true
-          echo "✅ Documentation check completed"
+          echo "🔍 Checking Markdown headings..."
+          find . -name "*.md" -exec grep -l "^# " {} \; | head -5 || true
+          echo "✅ Markdown check OK"
 
-  # Job 6: Summary report
+  # Job 6: CI Summary
   ci-summary:
     name: CI Summary
     runs-on: ubuntu-latest
     needs: [validate-k8s-yaml, validate-helm-charts, validate-python, validate-dockerfile]
     if: always()
     steps:
-      - name: CI Summary
+      - name: Summary
         run: |
           echo "## 🎉 CI/CD Checks Completed" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Check Item | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|--------|------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Item | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Kubernetes YAML | ${{ needs.validate-k8s-yaml.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Helm Charts | ${{ needs.validate-helm-charts.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Python Code | ${{ needs.validate-python.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Dockerfiles | ${{ needs.validate-dockerfile.result }} |" >> "$GITHUB_STEP_SUMMARY"
-          
+
           if [ "${{ needs.validate-k8s-yaml.result }}" != "success" ] || \
              [ "${{ needs.validate-helm-charts.result }}" != "success" ] || \
              [ "${{ needs.validate-python.result }}" != "success" ] || \
              [ "${{ needs.validate-dockerfile.result }}" != "success" ]; then
-            echo "❌ Some checks failed, please check detailed logs" >> "$GITHUB_STEP_SUMMARY"
+            echo "❌ Some checks failed" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           else
             echo "✅ All checks passed!" >> "$GITHUB_STEP_SUMMARY"
