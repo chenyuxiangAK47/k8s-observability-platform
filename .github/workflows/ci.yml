@@ -53,14 +53,17 @@ jobs:
             echo "检查: $file"
             
             # 用 Python + PyYAML 做纯语法解析
-            python3 - "$file" << 'PY'
+            python3 -c "
 import sys, yaml
-
 path = sys.argv[1]
-with open(path, "r", encoding="utf-8") as f:
-    # 只要能把所有文档 load 出来，语法就是合法的
-    list(yaml.safe_load_all(f))
-PY
+try:
+    with open(path, 'r', encoding='utf-8') as f:
+        list(yaml.safe_load_all(f))
+    sys.exit(0)
+except Exception as e:
+    print(f'错误: {e}', file=sys.stderr)
+    sys.exit(1)
+" "$file"
             EXIT_CODE=$?
             
             if [ $EXIT_CODE -eq 0 ]; then
