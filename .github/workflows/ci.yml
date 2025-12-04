@@ -53,7 +53,7 @@ jobs:
             echo "检查: $file"
             
             # 用 Python + PyYAML 做纯语法解析
-            python3 - << 'PY' "$file"
+            python3 - "$file" << 'PY'
 import sys, yaml
 
 path = sys.argv[1]
