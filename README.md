@@ -2,6 +2,16 @@
 
 这是一个将 `production-ready-observability-platform` 和 `microshop-microservices` 整合并迁移到 Kubernetes 的完整项目。
 
+## 🎯 项目亮点
+
+1. **Prometheus Operator 自动发现**：通过 ServiceMonitor 实现零配置指标采集，无需手动配置 Prometheus scrape_configs
+2. **OpenTelemetry 分布式追踪**：完整的 Trace 链路，支持跨服务追踪，自动检测 FastAPI 和 SQLAlchemy
+3. **HPA 自动扩缩容**：基于 CPU/内存指标自动调整 Pod 数量，实现弹性伸缩
+4. **Helm Chart 模块化**：可复用的 Chart 设计，支持多环境部署，配置与代码分离
+5. **问题排查实战**：解决了 Prometheus 指标重复注册、ServiceMonitor 配置匹配、API 定义等实际问题，所有问题都有详细的排查文档
+6. **完整的三支柱可观测性**：Metrics（Prometheus）+ Logs（Loki）+ Traces（Jaeger），统一在 Grafana 中可视化
+7. **CI/CD 自动化**：GitHub Actions 自动验证 Kubernetes YAML、Helm Charts、Python 代码和 Dockerfile，确保代码质量
+
 ## 🎯 项目目标
 
 1. ✅ 将可观测性平台迁移到 Kubernetes
@@ -10,6 +20,7 @@
 4. ✅ 添加 HPA 自动扩缩容
 5. ✅ 集成微服务（user-service、product-service、order-service）
 6. ✅ 实现完整的 OpenTelemetry 追踪
+7. ✅ 实现 CI/CD 自动化流程（GitHub Actions）
 
 ## 📦 项目结构
 
@@ -168,7 +179,23 @@ kind create cluster --name observability-platform
 - 服务发现
 - 自动扩缩容
 
+### 4. CI/CD 自动化
+- GitHub Actions 工作流配置
+- 自动化验证和测试
+- 持续集成最佳实践
+
 详细学习说明请查看代码中的注释和 [BUILD_AND_DEPLOY.md](BUILD_AND_DEPLOY.md)
+
+## 🔄 CI/CD 流程
+
+本项目使用 GitHub Actions 实现持续集成，每次代码提交或 PR 创建时自动运行：
+
+- ✅ **Kubernetes YAML 验证**：确保所有配置文件语法正确
+- ✅ **Helm Chart 验证**：检查 Chart 配置和模板渲染
+- ✅ **Python 代码验证**：语法检查和代码风格检查
+- ✅ **Dockerfile 验证**：确保 Dockerfile 能正确构建
+
+详细说明请查看 [CI/CD 学习指南](docs/CI_CD_GUIDE.md)
 
 ## 🔗 相关项目
 
