@@ -32,8 +32,8 @@ jobs:
           
           ERROR_COUNT=0
           
-          # 跳过需要 CRD 的文件（PrometheusRule 等）
-          SKIP_FILES=("prometheus-rule.yaml")
+          # 跳过需要 CRD 的文件（PrometheusRule、ServiceMonitor 等）
+          SKIP_FILES=("prometheus-rule.yaml" "service-monitor.yaml")
           
           # 查找所有 YAML 文件（排除 node_modules 等）
           find k8s -name "*.yaml" -o -name "*.yml" | while read file; do

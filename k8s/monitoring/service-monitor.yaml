@@ -10,13 +10,9 @@ spec:
     matchLabels:
       app: user-service
   endpoints:
-  - port: http
-    path: /metrics
-    interval: 30s
+    - port: http
+      path: /metrics
+      interval: 30s
   namespaceSelector:
     matchNames:
       - microservices
-
-
-
-
