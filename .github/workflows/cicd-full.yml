@@ -44,14 +44,32 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: '3.13.0'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
         run: |
           helm repo add grafana https://grafana.github.io/helm-charts
           helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
+          
+          # 验证 microservices chart
+          if [ ! -f helm/microservices/Chart.yaml ]; then
+            echo "❌ Chart.yaml missing in helm/microservices"
+            exit 1
+          fi
           helm lint helm/microservices
-          helm lint helm/observability-platform
           helm template microservices helm/microservices --dry-run > /dev/null
+          
+          # 验证 observability-platform chart
+          if [ ! -f helm/observability-platform/Chart.yaml ]; then
+            echo "❌ Chart.yaml missing in helm/observability-platform"
+            exit 1
+          fi
+          cd helm/observability-platform
+          helm dependency update
+          helm lint .
+          helm template observability-platform . --dry-run > /dev/null
+          cd ../..
+          
           echo "✅ Helm Charts validation passed"
 
       - name: Lint Python Code

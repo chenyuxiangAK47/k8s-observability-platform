@@ -80,6 +80,9 @@ jobs:
 
       - name: Install Helm
         uses: azure/setup-helm@v3
+        with:
+          version: '3.13.0'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add Helm repositories
         run: |
@@ -92,6 +95,10 @@ jobs:
         run: |
           echo "🔍 Linting observability-platform chart..."
           cd helm/observability-platform
+          if [ ! -f Chart.yaml ]; then
+            echo "❌ Chart.yaml missing in $(pwd)"
+            exit 1
+          fi
           helm dependency update
           helm lint .
           echo "✅ Lint OK"
