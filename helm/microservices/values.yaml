@@ -3,15 +3,18 @@ namespace: microservices
 
 # Global configuration
 global:
-  imageRegistry: ""
+  imageRegistry: "ghcr.io"  # GitHub Container Registry
   imagePullSecrets: []
+  # 如果使用私有镜像，需要配置 imagePullSecrets
+  # imagePullSecrets:
+  #   - name: ghcr-secret
 
 # User Service configuration
 userService:
   enabled: true
   image:
-    repository: user-service
-    tag: latest
+    repository: user-service  # 完整路径: ghcr.io/<username>/user-service
+    tag: latest  # CI/CD 会自动更新为 Git SHA
     pullPolicy: IfNotPresent
   replicaCount: 2
   service:
@@ -35,8 +38,8 @@ userService:
 productService:
   enabled: true
   image:
-    repository: product-service
-    tag: latest
+    repository: product-service  # 完整路径: ghcr.io/<username>/product-service
+    tag: latest  # CI/CD 会自动更新为 Git SHA
     pullPolicy: IfNotPresent
   replicaCount: 2
   service:
@@ -60,8 +63,8 @@ productService:
 orderService:
   enabled: true
   image:
-    repository: order-service
-    tag: latest
+    repository: order-service  # 完整路径: ghcr.io/<username>/order-service
+    tag: latest  # CI/CD 会自动更新为 Git SHA
     pullPolicy: IfNotPresent
   replicaCount: 2
   service:
@@ -100,6 +103,9 @@ rabbitmq:
   port: 5672
   user: guest
   password: guest
+
+
+
 
 
 

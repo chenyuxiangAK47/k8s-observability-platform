@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: product-service
-        image: "{{ .Values.productService.image.repository }}:{{ .Values.productService.image.tag }}"
+        image: "{{ include "microservices.image" (dict "Values" .Values "repository" .Values.productService.image.repository "tag" .Values.productService.image.tag) }}"
         imagePullPolicy: {{ .Values.productService.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.productService.service.port }}
@@ -73,6 +73,9 @@ spec:
   selector:
     app: product-service
 {{- end }}
+
+
+
 
 
 

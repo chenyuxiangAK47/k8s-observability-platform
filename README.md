@@ -4,13 +4,15 @@
 
 ## 🎯 项目亮点
 
-1. **Prometheus Operator 自动发现**：通过 ServiceMonitor 实现零配置指标采集，无需手动配置 Prometheus scrape_configs
-2. **OpenTelemetry 分布式追踪**：完整的 Trace 链路，支持跨服务追踪，自动检测 FastAPI 和 SQLAlchemy
-3. **HPA 自动扩缩容**：基于 CPU/内存指标自动调整 Pod 数量，实现弹性伸缩
-4. **Helm Chart 模块化**：可复用的 Chart 设计，支持多环境部署，配置与代码分离
-5. **问题排查实战**：解决了 Prometheus 指标重复注册、ServiceMonitor 配置匹配、API 定义等实际问题，所有问题都有详细的排查文档
-6. **完整的三支柱可观测性**：Metrics（Prometheus）+ Logs（Loki）+ Traces（Jaeger），统一在 Grafana 中可视化
-7. **CI/CD 自动化**：GitHub Actions 自动验证 Kubernetes YAML、Helm Charts、Python 代码和 Dockerfile，确保代码质量
+1. **🚀 企业级 GitOps + CI/CD**：完整的自动化部署流程，从代码提交到生产部署全自动（Lint → Build → Test → Scan → Deploy）
+2. **📦 ArgoCD GitOps 部署**：声明式部署，可审计、可回滚，Git 是唯一真实来源
+3. **🔍 Prometheus Operator 自动发现**：通过 ServiceMonitor 实现零配置指标采集，无需手动配置 Prometheus scrape_configs
+4. **🔗 OpenTelemetry 分布式追踪**：完整的 Trace 链路，支持跨服务追踪，自动检测 FastAPI 和 SQLAlchemy
+5. **📈 HPA 自动扩缩容**：基于 CPU/内存指标自动调整 Pod 数量，实现弹性伸缩
+6. **📋 Helm Chart 模块化**：可复用的 Chart 设计，支持多环境部署，配置与代码分离
+7. **🛠️ 问题排查实战**：解决了 Prometheus 指标重复注册、ServiceMonitor 配置匹配、API 定义等实际问题，所有问题都有详细的排查文档
+8. **📊 完整的三支柱可观测性**：Metrics（Prometheus）+ Logs（Loki）+ Traces（Jaeger），统一在 Grafana 中可视化
+9. **✅ CI/CD 自动化**：GitHub Actions 自动验证、构建、测试、扫描和部署
 
 ## 🎯 项目目标
 
@@ -21,6 +23,8 @@
 5. ✅ 集成微服务（user-service、product-service、order-service）
 6. ✅ 实现完整的 OpenTelemetry 追踪
 7. ✅ 实现 CI/CD 自动化流程（GitHub Actions）
+8. ✅ **实现 GitOps 部署（ArgoCD）**
+9. ✅ **完整的企业级 CI/CD Pipeline（Lint → Build → Test → Scan → Deploy）**
 
 ## 📦 项目结构
 
@@ -40,7 +44,14 @@
 │   └── ingress/                   # Ingress配置
 ├── scripts/                       # 构建和部署脚本
 │   ├── build-images.sh/.ps1      # 构建镜像脚本
-│   └── setup-and-deploy.sh/.ps1  # 完整部署脚本
+│   ├── setup-and-deploy.sh/.ps1  # 完整部署脚本
+│   ├── install-argocd.sh/.ps1    # 安装 ArgoCD 脚本
+│   └── deploy-gitops.sh/.ps1     # 部署 GitOps 应用脚本
+├── gitops/                        # GitOps 配置
+│   ├── apps/                      # ArgoCD Application 配置
+│   │   ├── microservices-app.yaml
+│   │   └── observability-app.yaml
+│   └── README.md                  # GitOps 说明文档
 └── docs/                          # 文档
 ```
 
@@ -103,7 +114,24 @@ kind create cluster --name observability-platform
 详细步骤请查看：
 - [NEXT_STEPS.md](NEXT_STEPS.md) - **立即开始：下一步行动指南** ⭐
 - [BUILD_AND_DEPLOY.md](BUILD_AND_DEPLOY.md) - 构建和部署详解
+- [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md) - **GitOps + CI/CD 完整部署指南** ⭐ **新增**
 - [LEARNING_NOTES.md](LEARNING_NOTES.md) - 学习笔记（为什么这么做）
+
+### GitOps 快速开始
+
+```bash
+# 1. 安装 ArgoCD
+./scripts/install-argocd.sh  # Linux/Mac
+.\scripts\install-argocd.ps1  # Windows
+
+# 2. 部署 GitOps Applications
+./scripts/deploy-gitops.sh   # Linux/Mac
+.\scripts\deploy-gitops.ps1  # Windows
+
+# 3. 访问 ArgoCD UI
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+# 打开 https://localhost:8080
+```
 
 ## 📊 架构图
 
@@ -188,14 +216,46 @@ kind create cluster --name observability-platform
 
 ## 🔄 CI/CD 流程
 
-本项目使用 GitHub Actions 实现持续集成，每次代码提交或 PR 创建时自动运行：
+本项目实现了**企业级 CI/CD Pipeline**，包含 5 个完整阶段：
 
-- ✅ **Kubernetes YAML 验证**：确保所有配置文件语法正确
-- ✅ **Helm Chart 验证**：检查 Chart 配置和模板渲染
-- ✅ **Python 代码验证**：语法检查和代码风格检查
-- ✅ **Dockerfile 验证**：确保 Dockerfile 能正确构建
+### 完整 Pipeline 流程
 
-详细说明请查看 [CI/CD 学习指南](docs/CI_CD_GUIDE.md)
+```
+代码提交
+    ↓
+🔍 Lint（代码检查）
+    ├─ Kubernetes YAML 验证
+    ├─ Helm Chart 验证
+    └─ Python 代码检查
+    ↓
+🏗️ Build（构建镜像）
+    ├─ 并行构建 3 个微服务镜像
+    └─ 推送到 GitHub Container Registry (GHCR)
+    ↓
+🧪 Test（运行测试）
+    ├─ 健康检查测试
+    └─ 导入测试
+    ↓
+🔒 Scan（安全扫描）
+    └─ Trivy 漏洞扫描
+    ↓
+🚀 Deploy（GitOps 部署）
+    ├─ 更新 Helm values（镜像标签）
+    ├─ 提交到 Git
+    └─ ArgoCD 自动同步到 Kubernetes
+```
+
+### Pipeline 特性
+
+- ✅ **多阶段验证**：Lint → Build → Test → Scan → Deploy
+- ✅ **并行构建**：三个微服务同时构建，提高效率
+- ✅ **安全扫描**：自动扫描 Docker 镜像漏洞
+- ✅ **GitOps 集成**：自动更新配置并触发 ArgoCD 同步
+- ✅ **镜像管理**：自动推送到 GHCR，支持多标签策略
+
+详细说明请查看：
+- [CI/CD 学习指南](docs/CI_CD_GUIDE.md)
+- [GitOps 部署指南](docs/GITOPS_DEPLOYMENT.md) ⭐ **新增**
 
 ## 🔗 相关项目
 

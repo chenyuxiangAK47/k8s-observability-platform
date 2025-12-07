@@ -48,6 +48,20 @@ app.kubernetes.io/name: {{ include "microservices.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
+{{/*
+Build full image path with registry
+*/}}
+{{- define "microservices.image" -}}
+{{- if .Values.global.imageRegistry -}}
+{{- printf "%s/%s:%s" .Values.global.imageRegistry .repository .tag -}}
+{{- else -}}
+{{- printf "%s:%s" .repository .tag -}}
+{{- end -}}
+{{- end -}}
+
+
+
+
 
 
 

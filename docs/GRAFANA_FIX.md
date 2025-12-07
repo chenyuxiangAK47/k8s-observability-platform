@@ -117,3 +117,6 @@ kubectl get pods -n monitoring | grep prometheus
 
 
 
+
+
+

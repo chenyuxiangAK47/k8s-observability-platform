@@ -1,0 +1,65 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: microservices
+  namespace: argocd
+  # 添加 finalizers 确保删除时清理资源
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # 项目配置
+  project: default
+
+  # Git 仓库配置（ArgoCD 会从这个仓库拉取配置）
+  source:
+    repoURL: https://github.com/chenyuxiangAK47/k8s-observability-platform
+    targetRevision: main  # 分支或标签
+    path: helm/microservices  # Helm Chart 路径
+    helm:
+      valueFiles:
+        - values.yaml
+      # 可以覆盖 values.yaml 中的值
+      # parameters:
+      #   - name: userService.image.tag
+      #     value: latest
+
+  # 目标集群和命名空间
+  destination:
+    server: https://kubernetes.default.svc  # 当前集群
+    namespace: microservices
+
+  # 同步策略
+  syncPolicy:
+    # 自动同步（当 Git 仓库有变更时自动同步）
+    automated:
+      prune: true  # 删除 Git 中不存在的资源
+      selfHeal: true  # 自动修复手动修改的资源
+      allowEmpty: false  # 不允许空应用
+    # 同步选项
+    syncOptions:
+      - CreateNamespace=true  # 如果命名空间不存在则创建
+      - PrunePropagationPolicy=foreground  # 删除策略
+      - PruneLast=true  # 最后删除资源
+    # 保留历史记录数量
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # 健康检查
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      namespace: microservices
+      name: user-service
+    - apiVersion: apps/v1
+      kind: Deployment
+      namespace: microservices
+      name: product-service
+    - apiVersion: apps/v1
+      kind: Deployment
+      namespace: microservices
+      name: order-service
+

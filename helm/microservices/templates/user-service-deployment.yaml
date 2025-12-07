@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: "{{ .Values.userService.image.repository }}:{{ .Values.userService.image.tag }}"
+        image: "{{ include "microservices.image" (dict "Values" .Values "repository" .Values.userService.image.repository "tag" .Values.userService.image.tag) }}"
         imagePullPolicy: {{ .Values.userService.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.userService.service.port }}
@@ -71,6 +71,9 @@ spec:
   selector:
     app: user-service
 {{- end }}
+
+
+
 
 
 
