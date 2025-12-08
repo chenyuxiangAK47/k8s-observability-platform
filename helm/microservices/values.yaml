@@ -3,9 +3,10 @@ namespace: microservices
 
 # Global configuration
 global:
-  imageRegistry: "ghcr.io"  # GitHub Container Registry
+  # imageRegistry: "ghcr.io"  # GitHub Container Registry (uncomment for CI/CD)
+  imageRegistry: ""  # Empty for local images
   imagePullSecrets: []
-  # 如果使用私有镜像，需要配置 imagePullSecrets
+  # If using private images, configure imagePullSecrets
   # imagePullSecrets:
   #   - name: ghcr-secret
 
@@ -92,7 +93,7 @@ opentelemetry:
 
 # Database configuration
 database:
-  host: postgres.microservices.svc.cluster.local
+  host: postgresql.microservices.svc.cluster.local
   port: 5432
   user: user
   password: password
