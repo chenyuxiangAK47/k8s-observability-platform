@@ -184,3 +184,4 @@ argocd app logs microservices
 
 > "我在项目中实现了完整的 GitOps 部署流程。使用 ArgoCD 实现声明式部署，所有配置都在 Git 仓库中，通过 CI/CD Pipeline 自动构建镜像并更新配置，ArgoCD 自动检测 Git 变更并同步到 Kubernetes 集群。这种方式实现了可审计、可回滚的生产级部署流程，大大提高了部署效率和可靠性。"
 
+

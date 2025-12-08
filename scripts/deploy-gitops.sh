@@ -45,3 +45,4 @@ echo "   argocd app sync microservices"
 echo "   argocd app sync observability-platform"
 echo ""
 
+

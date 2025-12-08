@@ -24,3 +24,4 @@ dependencies:
     repository: https://jaegertracing.github.io/helm-charts
     version: 0.71.0
 
+

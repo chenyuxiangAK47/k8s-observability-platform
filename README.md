@@ -8,11 +8,12 @@
 2. **📦 ArgoCD GitOps 部署**：声明式部署，可审计、可回滚，Git 是唯一真实来源
 3. **🔍 Prometheus Operator 自动发现**：通过 ServiceMonitor 实现零配置指标采集，无需手动配置 Prometheus scrape_configs
 4. **🔗 OpenTelemetry 分布式追踪**：完整的 Trace 链路，支持跨服务追踪，自动检测 FastAPI 和 SQLAlchemy
-5. **📈 HPA 自动扩缩容**：基于 CPU/内存指标自动调整 Pod 数量，实现弹性伸缩
+5. **📈 高级自动扩缩容**：HPA（基于 CPU/内存 + Prometheus 指标）+ VPA（自动调整资源）+ KEDA（基于外部指标）
 6. **📋 Helm Chart 模块化**：可复用的 Chart 设计，支持多环境部署，配置与代码分离
 7. **🛠️ 问题排查实战**：解决了 Prometheus 指标重复注册、ServiceMonitor 配置匹配、API 定义等实际问题，所有问题都有详细的排查文档
 8. **📊 完整的三支柱可观测性**：Metrics（Prometheus）+ Logs（Loki）+ Traces（Jaeger），统一在 Grafana 中可视化
 9. **✅ CI/CD 自动化**：GitHub Actions 自动验证、构建、测试、扫描和部署
+10. **🌐 Service Mesh (Istio)**：mTLS 加密通信、金丝雀发布、流量管理、熔断限流
 
 ## 🎯 项目目标
 
@@ -25,6 +26,7 @@
 7. ✅ 实现 CI/CD 自动化流程（GitHub Actions）
 8. ✅ **实现 GitOps 部署（ArgoCD）**
 9. ✅ **完整的企业级 CI/CD Pipeline（Lint → Build → Test → Scan → Deploy）**
+10. ✅ **Level 1 完整功能**：高级自动扩缩容（Prometheus HPA + VPA + KEDA）+ Service Mesh（Istio + mTLS + 金丝雀发布）
 
 ## 📦 项目结构
 
@@ -46,13 +48,30 @@
 │   ├── build-images.sh/.ps1      # 构建镜像脚本
 │   ├── setup-and-deploy.sh/.ps1  # 完整部署脚本
 │   ├── install-argocd.sh/.ps1    # 安装 ArgoCD 脚本
-│   └── deploy-gitops.sh/.ps1     # 部署 GitOps 应用脚本
+│   ├── deploy-gitops.sh/.ps1     # 部署 GitOps 应用脚本
+│   ├── install-advanced-autoscaling.sh/.ps1  # 安装高级自动扩缩容
+│   ├── install-istio.sh/.ps1      # 安装 Istio Service Mesh
+│   ├── install-level1-complete.sh/.ps1  # Level 1 一键安装
+│   └── canary-deployment.sh      # 金丝雀发布脚本
+├── k8s/                           # Kubernetes 配置
+│   ├── autoscaling/               # 自动扩缩容配置
+│   │   ├── hpa.yaml              # 基础 HPA
+│   │   ├── prometheus-adapter.yaml  # Prometheus Adapter
+│   │   ├── prometheus-metrics-hpa.yaml  # 基于 Prometheus 的 HPA
+│   │   ├── vpa.yaml              # VPA 配置
+│   │   └── keda-redis-scaler.yaml  # KEDA 配置
+│   └── service-mesh/             # Service Mesh 配置
+│       ├── mtls-policy.yaml      # mTLS 策略
+│       ├── destination-rules.yaml  # 目标规则
+│       ├── virtual-services.yaml  # 虚拟服务
+│       └── gateway.yaml          # 网关配置
 ├── gitops/                        # GitOps 配置
 │   ├── apps/                      # ArgoCD Application 配置
 │   │   ├── microservices-app.yaml
 │   │   └── observability-app.yaml
 │   └── README.md                  # GitOps 说明文档
 └── docs/                          # 文档
+    ├── LEVEL1_COMPLETE.md         # Level 1 完整功能指南 ⭐
 ```
 
 ## 🚀 快速开始
@@ -114,8 +133,21 @@ kind create cluster --name observability-platform
 详细步骤请查看：
 - [NEXT_STEPS.md](NEXT_STEPS.md) - **立即开始：下一步行动指南** ⭐
 - [BUILD_AND_DEPLOY.md](BUILD_AND_DEPLOY.md) - 构建和部署详解
-- [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md) - **GitOps + CI/CD 完整部署指南** ⭐ **新增**
+- [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md) - **GitOps + CI/CD 完整部署指南** ⭐
+- [docs/LEVEL1_COMPLETE.md](docs/LEVEL1_COMPLETE.md) - **Level 1 完整功能指南（高级扩缩容 + Service Mesh）** ⭐ **新增**
 - [LEARNING_NOTES.md](LEARNING_NOTES.md) - 学习笔记（为什么这么做）
+
+### Level 1 完整功能快速开始
+
+```bash
+# 一键安装所有 Level 1 功能
+./scripts/install-level1-complete.sh  # Linux/Mac
+.\scripts\install-level1-complete.ps1  # Windows
+
+# 或分步安装
+./scripts/install-advanced-autoscaling.sh  # 高级自动扩缩容
+./scripts/install-istio.sh  # Service Mesh
+```
 
 ### GitOps 快速开始
 

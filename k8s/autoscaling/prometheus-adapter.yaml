@@ -1,0 +1,60 @@
+# Prometheus Adapter 配置
+# 用于将 Prometheus 指标转换为 Kubernetes 自定义指标 API
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adapter-config
+  namespace: kube-system
+data:
+  config.yaml: |
+    rules:
+      # 自定义指标规则
+      custom:
+      # HTTP 请求速率 (QPS)
+      - seriesQuery: 'http_requests_total{namespace!="",pod!=""}'
+        resources:
+          overrides:
+            namespace: {resource: "namespace"}
+            pod: {resource: "pod"}
+        name:
+          matches: "^http_requests_total$"
+          as: "http_requests_per_second"
+        metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[2m])) by (<<.GroupBy>>)'
+      
+      # HTTP 请求延迟 (P50, P95, P99)
+      - seriesQuery: 'http_request_duration_seconds{namespace!="",pod!=""}'
+        resources:
+          overrides:
+            namespace: {resource: "namespace"}
+            pod: {resource: "pod"}
+        name:
+          matches: "^http_request_duration_seconds_(.*)$"
+          as: "http_request_duration_seconds_${1}"
+        metricsQuery: '<<.Series>>{<<.LabelMatchers>>}'
+      
+      # 错误率
+      - seriesQuery: 'http_requests_total{status=~"5..",namespace!="",pod!=""}'
+        resources:
+          overrides:
+            namespace: {resource: "namespace"}
+            pod: {resource: "pod"}
+        name:
+          matches: "^http_requests_total$"
+          as: "http_error_rate"
+        metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[2m])) by (<<.GroupBy>>)'
+
+---
+# ServiceMonitor for Prometheus Adapter
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-adapter
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: prometheus-adapter
+  endpoints:
+  - port: https
+    interval: 30s
+

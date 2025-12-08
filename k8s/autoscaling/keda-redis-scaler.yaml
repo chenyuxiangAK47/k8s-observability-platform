@@ -1,0 +1,41 @@
+# KEDA ScaledObject - 基于 Redis 队列长度的扩缩容
+# 当 Redis 队列中有任务时，自动扩展 Pod
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: redis-queue-scaler
+  namespace: microservices
+spec:
+  scaleTargetRef:
+    name: order-service  # 订单服务处理 Redis 队列
+  minReplicaCount: 2
+  maxReplicaCount: 10
+  triggers:
+  - type: redis
+    metadata:
+      address: redis.microservices.svc.cluster.local:6379
+      listName: order-queue  # Redis 列表名称
+      listLength: "10"  # 当队列长度 > 10 时开始扩容
+      activationListLength: "5"  # 当队列长度 < 5 时开始缩容
+
+---
+# KEDA ScaledObject - 基于 HTTP 请求的扩缩容
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: http-scaler
+  namespace: microservices
+spec:
+  scaleTargetRef:
+    name: user-service
+  minReplicaCount: 2
+  maxReplicaCount: 20
+  triggers:
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus.observability.svc.cluster.local:9090
+      metricName: http_requests_per_second
+      threshold: '100'  # 当 QPS > 100 时扩容
+      query: 'sum(rate(http_requests_total{service="user-service"}[2m]))'
+

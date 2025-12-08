@@ -48,3 +48,4 @@ Write-Host "   argocd app sync microservices" -ForegroundColor White
 Write-Host "   argocd app sync observability-platform" -ForegroundColor White
 Write-Host ""
 
+

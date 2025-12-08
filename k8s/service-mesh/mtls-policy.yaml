@@ -1,0 +1,23 @@
+# Istio mTLS 策略
+# 强制所有服务间通信使用 mTLS（双向 TLS）
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: microservices
+spec:
+  mtls:
+    mode: STRICT  # STRICT: 强制 mTLS, PERMISSIVE: 允许明文和 mTLS, DISABLE: 禁用 mTLS
+
+---
+# 为整个集群启用 mTLS（可选）
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  mtls:
+    mode: PERMISSIVE  # 集群级别使用 PERMISSIVE，命名空间级别使用 STRICT
+

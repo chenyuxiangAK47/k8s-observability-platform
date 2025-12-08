@@ -77,3 +77,4 @@ Write-Host "   - Download from: https://github.com/argoproj/argo-cd/releases" -F
 Write-Host "   - Or use: winget install ArgoCD" -ForegroundColor White
 Write-Host ""
 
+

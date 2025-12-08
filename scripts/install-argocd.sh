@@ -46,3 +46,4 @@ echo "   - Linux: curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj
 echo "   - Windows: Download from https://github.com/argoproj/argo-cd/releases"
 echo ""
 
+

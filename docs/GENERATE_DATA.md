@@ -123,3 +123,4 @@ sum(rate(user_service_http_requests_total[5m])) + sum(rate(product_service_http_
 
 
 
+
