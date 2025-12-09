@@ -139,11 +139,7 @@ jobs:
       - name: Basic import test
         run: |
           cd services/${{ matrix.service }}
-          python - <<EOF
-import sys
-sys.path.insert(0, '.')
-print("Import OK")
-EOF
+          python -c "import sys; sys.path.insert(0, '.'); print('Import OK')"
 
   # ==================== Scan ====================
   scan:
