@@ -37,12 +37,9 @@ jobs:
             -not -name "*prometheus-rule.yaml" \
             -not -name "*service-monitor.yaml" \
             | while read file; do
-                python3 - <<EOF
-import yaml, sys
-yaml.safe_load_all(open("$file"))
-EOF
+                python3 -c "import yaml, sys; yaml.safe_load_all(open('$file'))" || exit 1
               done
-          echo "✅ YAML OK"
+          echo "✅ Kubernetes YAML validation passed"
 
       - name: Install Helm
         uses: azure/setup-helm@v3
