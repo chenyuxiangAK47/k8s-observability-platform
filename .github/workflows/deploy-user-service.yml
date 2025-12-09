@@ -60,7 +60,7 @@ jobs:
           cache-to: type=ghcr,scope=${{ github.repository_owner }}/${{ env.SERVICE_NAME }},mode=max
 
       - name: Image digest
-        run: echo "Image pushed: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+        run: echo 'Image pushed: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ env.SERVICE_NAME }}:${{ github.sha }}'
 
   # ==================== 阶段 2: Deploy（GitOps 部署）====================
   deploy:

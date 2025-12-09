@@ -135,7 +135,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Image digest
-        run: echo "Image pushed with digest: ${{ steps.build.outputs.digest }}"
+        run: echo 'Image pushed with digest: ${{ steps.build.outputs.digest }}'
 
   # ==================== 阶段 3: Test（运行测试）====================
   test:
