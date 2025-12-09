@@ -14,7 +14,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ toLower(github.repository_owner) }}
+  IMAGE_PREFIX: chenyuxiangak47
   SERVICE_NAME: user-service
 
 jobs:
