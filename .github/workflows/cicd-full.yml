@@ -17,7 +17,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}
+  IMAGE_PREFIX: ${{ toLower(github.repository_owner) }}
 
 jobs:
   # ==================== Lint ====================
