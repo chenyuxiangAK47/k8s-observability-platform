@@ -1,21 +1,19 @@
 # Default values for microservices
 namespace: microservices
-
 # Global configuration
 global:
   # imageRegistry: "ghcr.io"  # GitHub Container Registry (set by CI/CD automatically)
-  imageRegistry: ""  # Empty for local images (CI/CD will set this to "ghcr.io")
+  imageRegistry: "ghcr.io" # Empty for local images (CI/CD will set this to "ghcr.io")
   imagePullSecrets: []
   # If using private images, configure imagePullSecrets
   # imagePullSecrets:
   #   - name: ghcr-secret
-
 # User Service configuration
 userService:
   enabled: true
   image:
-    repository: user-service  # 完整路径: ghcr.io/<username>/user-service
-    tag: latest  # CI/CD 会自动更新为 Git SHA
+    repository: chenyuxiangak47/user-service # 完整路径: ghcr.io/<username>/user-service
+    tag: 9ec9f6cc7bdbd9a406f4f9fae80bef56eb51bd35 # CI/CD 会自动更新为 Git SHA
     pullPolicy: IfNotPresent
   replicaCount: 2
   service:
@@ -34,13 +32,12 @@ userService:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
-
 # Product Service configuration
 productService:
   enabled: true
   image:
-    repository: product-service  # 完整路径: ghcr.io/<username>/product-service
-    tag: latest  # CI/CD 会自动更新为 Git SHA
+    repository: product-service # 完整路径: ghcr.io/<username>/product-service
+    tag: latest # CI/CD 会自动更新为 Git SHA
     pullPolicy: IfNotPresent
   replicaCount: 2
   service:
@@ -59,13 +56,12 @@ productService:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
-
 # Order Service configuration
 orderService:
   enabled: true
   image:
-    repository: order-service  # 完整路径: ghcr.io/<username>/order-service
-    tag: latest  # CI/CD 会自动更新为 Git SHA
+    repository: order-service # 完整路径: ghcr.io/<username>/order-service
+    tag: latest # CI/CD 会自动更新为 Git SHA
     pullPolicy: IfNotPresent
   replicaCount: 2
   service:
@@ -84,35 +80,20 @@ orderService:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
-
 # OpenTelemetry configuration
 opentelemetry:
   enabled: true
   collector:
     endpoint: "http://jaeger-collector.observability.svc.cluster.local:4317"
-
 # Database configuration
 database:
   host: postgresql.microservices.svc.cluster.local
   port: 5432
   user: user
   password: password
-
 # RabbitMQ configuration
 rabbitmq:
   host: rabbitmq.microservices.svc.cluster.local
   port: 5672
   user: guest
   password: guest
-
-
-
-
-
-
-
-
-
-
-
-
