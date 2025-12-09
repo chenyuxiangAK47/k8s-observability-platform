@@ -241,6 +241,9 @@ jobs:
         run: |
           echo "🔄 Updating Helm values with new image tags..."
           
+          # 设置 imageRegistry（用于 CI/CD）
+          yq eval '.global.imageRegistry = "${{ env.REGISTRY }}"' -i helm/microservices/values.yaml
+          
           # 更新 user-service 镜像
           yq eval '.userService.image.repository = "${{ env.IMAGE_PREFIX }}/user-service"' -i helm/microservices/values.yaml
           yq eval '.userService.image.tag = "${{ github.sha }}"' -i helm/microservices/values.yaml

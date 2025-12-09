@@ -101,3 +101,4 @@ kubectl get pods -n monitoring
 kubectl get pods -n observability
 ```
 
+

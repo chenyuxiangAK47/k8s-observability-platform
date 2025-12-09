@@ -44,3 +44,4 @@ echo "💡 To increase v2 traffic, run:"
 echo "   ./scripts/canary-deployment.sh ${SERVICE_NAME} ${NAMESPACE} 50 50  # 50/50 split"
 echo "   ./scripts/canary-deployment.sh ${SERVICE_NAME} ${NAMESPACE} 0 100  # 100% v2"
 
+

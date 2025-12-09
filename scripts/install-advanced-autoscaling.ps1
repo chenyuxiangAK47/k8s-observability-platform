@@ -59,3 +59,4 @@ Write-Host "   kubectl get vpa -n microservices" -ForegroundColor White
 Write-Host "   kubectl get scaledobject -n microservices" -ForegroundColor White
 Write-Host ""
 
+

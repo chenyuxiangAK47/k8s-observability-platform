@@ -39,3 +39,4 @@ spec:
       threshold: '100'  # 当 QPS > 100 时扩容
       query: 'sum(rate(http_requests_total{service="user-service"}[2m]))'
 
+

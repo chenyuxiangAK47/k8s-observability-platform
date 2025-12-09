@@ -46,3 +46,4 @@ echo "   argocd app sync observability-platform"
 echo ""
 
 
+

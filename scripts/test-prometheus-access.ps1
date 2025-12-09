@@ -39,3 +39,4 @@ Write-Host "   1. Check if port 9090 is already in use: netstat -ano | findstr :
 Write-Host "   2. Try a different local port: kubectl port-forward -n monitoring svc/prometheus-operator-kube-p-prometheus 9091:9090" -ForegroundColor White
 Write-Host "   3. Use direct pod forwarding (Method 2 above)" -ForegroundColor White
 
+

@@ -231,3 +231,4 @@ kubectl create secret docker-registry ghcr-secret \
 **有问题？** 查看 [故障排查指南](docs/GITOPS_DEPLOYMENT.md#故障排查)
 
 
+

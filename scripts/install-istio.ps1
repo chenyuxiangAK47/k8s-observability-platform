@@ -81,3 +81,4 @@ Write-Host "   kubectl port-forward svc/istio-ingressgateway -n istio-system 808
 Write-Host "   curl http://localhost:8080/api/users/health" -ForegroundColor White
 Write-Host ""
 
+

@@ -61,3 +61,4 @@ echo "   kubectl port-forward svc/istio-ingressgateway -n istio-system 8080:80"
 echo "   curl http://localhost:8080/api/users/health"
 echo ""
 
+

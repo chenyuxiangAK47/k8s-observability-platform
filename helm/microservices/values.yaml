@@ -3,8 +3,8 @@ namespace: microservices
 
 # Global configuration
 global:
-  # imageRegistry: "ghcr.io"  # GitHub Container Registry (uncomment for CI/CD)
-  imageRegistry: ""  # Empty for local images
+  # imageRegistry: "ghcr.io"  # GitHub Container Registry (set by CI/CD automatically)
+  imageRegistry: ""  # Empty for local images (CI/CD will set this to "ghcr.io")
   imagePullSecrets: []
   # If using private images, configure imagePullSecrets
   # imagePullSecrets:
