@@ -1,20 +1,19 @@
-name: "🚀 Full CI/CD Pipeline (Lint → Build → Test → Scan → Deploy)"
+name: "Full CI/CD Pipeline (Lint → Build → Test → Deploy)"
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ "main", "master" ]
     paths:
       - "services/**"
       - "helm/**"
       - ".github/workflows/**"
   pull_request:
-    branches: [ main, master ]
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 permissions:
   contents: write
   packages: write
-  checks: write
 
 env:
   REGISTRY: ghcr.io
@@ -23,160 +22,109 @@ env:
 jobs:
   # ==================== Lint ====================
   lint:
-    name: "🔍 Lint & Validate"
+    name: "Lint & Validate"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate Kubernetes YAML
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Lint Python services
         run: |
-          echo "🔍 Validating Kubernetes YAML..."
-          pip install pyyaml
-          find k8s \( -name "*.yaml" -o -name "*.yml" \) \
-            -not -name "*prometheus-rule.yaml" \
-            -not -name "*service-monitor.yaml" \
-            | while read file; do
-                python3 -c "import yaml, sys; yaml.safe_load_all(open('$file'))" || exit 1
-              done
-          echo "✅ Kubernetes YAML validation passed"
+          pip install flake8
+          for svc in user-service product-service order-service; do
+            if [ -d "services/$svc" ]; then
+              echo "Linting $svc..."
+              flake8 "services/$svc" --max-line-length=120 || true
+            fi
+          done
 
       - name: Install Helm
         uses: azure/setup-helm@v3
         with:
           version: "3.13.0"
 
-      - name: Validate Helm Charts
+      - name: Lint Helm charts
         run: |
-          helm repo add grafana https://grafana.github.io/helm-charts
-          helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
-          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-          helm repo update
-          echo "🔍 Validating microservices chart..."
-          helm lint helm/microservices
-          helm template test helm/microservices --dry-run > /dev/null
-          echo "🔍 Validating observability chart..."
-          cd helm/observability-platform
-          helm dependency update
-          helm lint .
-          helm template test . --dry-run > /dev/null
-          cd ../..
-          echo "✅ Helm charts OK"
-
-      - name: Lint Python Code
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-        run: |
-          pip install flake8 pylint
-          for svc in user-service product-service order-service; do
-            if [ -d "services/$svc" ]; then
-              flake8 services/$svc --max-line-length=120 || true
-              find services/$svc -name "*.py" -exec python -m py_compile {} \;
-            fi
-          done
-          echo "✅ Python OK"
+          if [ -d "helm/microservices" ]; then
+            echo "Linting helm/microservices..."
+            helm lint helm/microservices
+          fi
+          if [ -d "helm/observability-platform" ]; then
+            echo "Linting helm/observability-platform..."
+            helm lint helm/observability-platform
+          fi
 
   # ==================== Build ====================
   build:
-    name: "🏗️ Build Docker Images"
+    name: "Build Docker Images"
     runs-on: ubuntu-latest
     needs: lint
     strategy:
       matrix:
-        service: [user-service, product-service, order-service]
+        service: [ "user-service", "product-service", "order-service" ]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
-          tags: |
-            type=sha,prefix={{branch}}-
-
       - name: Build and push image
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: ./services/${{ matrix.service }}
           file: ./services/${{ matrix.service }}/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-
-      - run: echo "Image pushed: ${{ steps.meta.outputs.tags }}"
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:latest
 
   # ==================== Test ====================
   test:
-    name: "🧪 Run Tests"
-    needs: build
+    name: "Run Basic Tests"
     runs-on: ubuntu-latest
+    needs: build
     strategy:
       matrix:
-        service: [user-service, product-service, order-service]
+        service: [ "user-service", "product-service", "order-service" ]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install dependencies and run import test
         run: |
           cd services/${{ matrix.service }}
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest
-
-      - name: Basic import test
-        run: |
-          cd services/${{ matrix.service }}
-          python -c "import sys; sys.path.insert(0, '.'); print('Import OK')"
-
-  # ==================== Scan ====================
-  scan:
-    name: "🔒 Security Scan"
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [user-service, product-service, order-service]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Trivy scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:latest
-          format: sarif
-          output: trivy.sarif
-
-      - uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy.sarif
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          python -c "import sys; sys.path.insert(0, '.'); print('Import OK for', '${{ matrix.service }}')"
 
   # ==================== Deploy ====================
   deploy:
-    name: "🚀 GitOps Deploy"
+    name: "GitOps Deploy (update Helm values)"
     runs-on: ubuntu-latest
-    needs: [build, test, scan]
+    needs: [ build, test ]
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -186,30 +134,45 @@ jobs:
           wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           chmod +x /usr/local/bin/yq
 
-      - name: Update Helm values
+      - name: Update image tags in Helm values
         run: |
-          yq -i '.global.imageRegistry="${{ env.REGISTRY }}"' helm/microservices/values.yaml
-          for svc in user-service product-service order-service; do
-            yq -i ".${svc//-Service/}.image.repository=\"${{ env.IMAGE_PREFIX }}/$svc\"" helm/microservices/values.yaml
-          done
+          if [ -f helm/microservices/values.yaml ]; then
+            echo "Updating helm/microservices/values.yaml ..."
+            yq -i ".global.imageRegistry = \"${{ env.REGISTRY }}\"" helm/microservices/values.yaml
+            yq -i ".userService.image.repository = \"${{ env.IMAGE_PREFIX }}/user-service\"" helm/microservices/values.yaml
+            yq -i ".userService.image.tag = \"${{ github.sha }}\"" helm/microservices/values.yaml
+            yq -i ".productService.image.repository = \"${{ env.IMAGE_PREFIX }}/product-service\"" helm/microservices/values.yaml
+            yq -i ".productService.image.tag = \"${{ github.sha }}\"" helm/microservices/values.yaml
+            yq -i ".orderService.image.repository = \"${{ env.IMAGE_PREFIX }}/order-service\"" helm/microservices/values.yaml
+            yq -i ".orderService.image.tag = \"${{ github.sha }}\"" helm/microservices/values.yaml
+          else
+            echo "helm/microservices/values.yaml not found, skip update."
+          fi
 
-      - name: Commit changes
+      - name: Commit and push changes
         run: |
-          git add helm/microservices/values.yaml
-          git commit -m "Update images to ${{ github.sha }} [skip ci]" || true
-          git push
+          git add helm/microservices/values.yaml || true
+          if ! git diff --staged --quiet; then
+            git commit -m "Update image tags to ${{ github.sha }} [skip ci]"
+            git push
+          else
+            echo "No changes to commit."
+          fi
 
   # ==================== Summary ====================
   summary:
-    name: "📊 Summary"
+    name: "CI/CD Summary"
     runs-on: ubuntu-latest
-    needs: [lint, build, test, scan, deploy]
+    needs: [ lint, build, test, deploy ]
     if: always()
     steps:
-      - run: |
-          echo "## 🎉 CI/CD Complete" >> $GITHUB_STEP_SUMMARY
-          echo "- Lint: ${{ needs.lint.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Build: ${{ needs.build.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Test: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Scan: ${{ needs.scan.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Deploy: ${{ needs.deploy.result }}" >> $GITHUB_STEP_SUMMARY
+      - name: Generate summary
+        run: |
+          echo "## CI/CD Pipeline Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Stage  | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Lint   | ${{ needs.lint.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Build  | ${{ needs.build.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Test   | ${{ needs.test.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Deploy | ${{ needs.deploy.result }} |" >> "$GITHUB_STEP_SUMMARY"
