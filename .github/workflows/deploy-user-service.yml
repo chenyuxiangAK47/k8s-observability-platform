@@ -92,15 +92,19 @@ jobs:
           echo "🔄 Updating Helm values for ${{ env.SERVICE_NAME }}..."
           
           # 设置 imageRegistry（用于 CI/CD）
-          yq eval '.global.imageRegistry = "${{ env.REGISTRY }}"' -i helm/microservices/values.yaml
+          yq eval -i '.global.imageRegistry = "${{ env.REGISTRY }}"' helm/microservices/values.yaml
           
           # 更新 user-service 镜像
-          yq eval '.userService.image.repository = "${{ env.IMAGE_PREFIX }}/${{ env.SERVICE_NAME }}"' -i helm/microservices/values.yaml
-          yq eval '.userService.image.tag = "${{ github.sha }}"' -i helm/microservices/values.yaml
+          yq eval -i '.userService.image.repository = "${{ env.IMAGE_PREFIX }}/${{ env.SERVICE_NAME }}"' helm/microservices/values.yaml
+          yq eval -i '.userService.image.tag = "${{ github.sha }}"' helm/microservices/values.yaml
           
           echo "✅ Helm values updated"
           echo "Updated image:"
           yq eval '.userService.image' helm/microservices/values.yaml
+          
+          # 显示更新后的内容（用于调试）
+          echo "Full userService config:"
+          yq eval '.userService' helm/microservices/values.yaml
 
       - name: Commit and push changes
         run: |
