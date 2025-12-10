@@ -91,8 +91,8 @@ ecr:GetAuthorizationToken on resource: *
 ```powershell
 # 配置 AWS CLI（如果还没配置）
 aws configure
-# 输入 Access Key ID: AKIAUW4LOMD2F7BNAXGM
-# 输入 Secret Access Key: oWcuoDtiFz8jsolO32m/uCGy7n6uRWCBV6MDxPg6
+# 输入 Access Key ID: <你的 Access Key ID>
+# 输入 Secret Access Key: <你的 Secret Access Key>
 # 输入 region: us-east-1
 
 # 测试 ECR 权限
