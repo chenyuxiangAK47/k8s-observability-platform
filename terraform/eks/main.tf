@@ -280,6 +280,10 @@ resource "aws_eks_node_group" "main" {
 }
 
 # ECR Repositories
+# Note: If repositories already exist, import them first:
+# terraform import 'aws_ecr_repository.services["user-service"]' user-service
+# terraform import 'aws_ecr_repository.services["product-service"]' product-service
+# terraform import 'aws_ecr_repository.services["order-service"]' order-service
 resource "aws_ecr_repository" "services" {
   for_each = toset(["user-service", "product-service", "order-service"])
 
