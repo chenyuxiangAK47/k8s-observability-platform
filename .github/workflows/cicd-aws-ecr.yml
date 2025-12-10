@@ -83,7 +83,6 @@ jobs:
 
       - name: Ensure ECR repositories exist
         run: |
-          set -euo pipefail
           REPOS="user-service product-service order-service"
           for repo in $REPOS; do
             echo "Checking ECR repository: $repo"
@@ -92,7 +91,7 @@ jobs:
               aws ecr create-repository \
                 --repository-name "$repo" \
                 --image-scanning-configuration scanOnPush=true \
-                --region us-east-1
+                --region us-east-1 || echo "Repository $repo already exists, continuing..."
             else
               echo "ECR repository $repo already exists"
             fi
