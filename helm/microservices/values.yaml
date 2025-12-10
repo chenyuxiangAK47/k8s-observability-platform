@@ -13,7 +13,7 @@ userService:
   enabled: true
   image:
     repository: chenyuxiangak47/user-service # 完整路径: ghcr.io/<username>/user-service
-    tag: 9ec9f6cc7bdbd9a406f4f9fae80bef56eb51bd35 # CI/CD 会自动更新为 Git SHA
+    tag: 94a373d9cef321f219c15a2594e72c1057c0f5ab # CI/CD 会自动更新为 Git SHA
     pullPolicy: IfNotPresent
   replicaCount: 2
   service:
