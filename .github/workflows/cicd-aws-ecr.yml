@@ -198,6 +198,7 @@ jobs:
           git add helm/microservices/values.yaml
           if ! git diff --staged --quiet; then
             git commit -m "Update images to ECR ${{ github.sha }} [skip ci]"
+            git pull --rebase origin master || git pull --rebase origin main
             git push
             echo "Changes pushed. ArgoCD will sync automatically."
           else
