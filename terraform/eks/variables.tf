@@ -17,9 +17,9 @@ variable "environment" {
 }
 
 variable "kubernetes_version" {
-  description = "Kubernetes version"
+  description = "Kubernetes version (must upgrade incrementally: 1.28 -> 1.29 -> 1.30)"
   type        = string
-  default     = "1.30"
+  default     = "1.29"  # Start with 1.29, then upgrade to 1.30 after
 }
 
 variable "vpc_cidr" {

@@ -250,7 +250,9 @@ resource "aws_eks_node_group" "main" {
   node_group_name = "${var.cluster_name}-nodes"
   node_role_arn   = aws_iam_role.eks_node.arn
   subnet_ids      = aws_subnet.private[*].id
-  version         = var.kubernetes_version
+  # Use cluster's current version instead of forcing a specific version
+  # This allows the node group to match the cluster version
+  version         = aws_eks_cluster.main.version
 
   scaling_config {
     desired_size = var.node_desired_size
