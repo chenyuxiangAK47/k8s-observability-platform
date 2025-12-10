@@ -10,7 +10,7 @@ spec:
 
   source:
     repoURL: https://github.com/chenyuxiangAK47/k8s-observability-platform
-    targetRevision: main
+    targetRevision: master
     path: helm/observability-platform
     helm:
       valueFiles:
