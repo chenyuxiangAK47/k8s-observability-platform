@@ -3,7 +3,7 @@ namespace: microservices
 # Global configuration
 global:
   # imageRegistry: "ghcr.io"  # GitHub Container Registry (set by CI/CD automatically)
-  imageRegistry: "324025606388.dkr.ecr.us-east-1.amazonaws.com" # Empty for local images (CI/CD will set this to "ghcr.io")
+  imageRegistry: "ghcr.io" # Empty for local images (CI/CD will set this to "ghcr.io")
   imagePullSecrets: []
   # If using private images, configure imagePullSecrets
   # imagePullSecrets:
@@ -12,8 +12,8 @@ global:
 userService:
   enabled: true
   image:
-    repository: user-service # 完整路径: ghcr.io/<username>/user-service
-    tag: 2fdb2f46fc98b6b49c7c4696573c07ef0f184482 # CI/CD 会自动更新为 Git SHA
+    repository: chenyuxiangak47/user-service # 完整路径: ghcr.io/<username>/user-service
+    tag: 092cad719be7fc18414111efe39554b0ed364293 # CI/CD 会自动更新为 Git SHA
     pullPolicy: IfNotPresent
   replicaCount: 2
   service:
