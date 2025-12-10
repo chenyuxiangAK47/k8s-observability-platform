@@ -66,11 +66,12 @@ ecr:GetAuthorizationToken on resource: *
            "ecr:UploadLayerPart",
            "ecr:CompleteLayerUpload"
          ],
-         "Resource": "arn:aws:ecr:us-east-1:324025606388:repository/*"
+         "Resource": "arn:aws:ecr:us-east-1:<ACCOUNT_ID>:repository/*"
        }
      ]
    }
    ```
+   替换 `<ACCOUNT_ID>` 为你的 AWS 账号 ID。
 
 3. **命名策略**
    - Policy name: `GitHubActionsECRPolicy`
@@ -91,8 +92,8 @@ ecr:GetAuthorizationToken on resource: *
 ```powershell
 # 配置 AWS CLI（如果还没配置）
 aws configure
-# 输入 Access Key ID: <你的 Access Key ID>
-# 输入 Secret Access Key: <你的 Secret Access Key>
+# 输入你的 Access Key ID
+# 输入你的 Secret Access Key
 # 输入 region: us-east-1
 
 # 测试 ECR 权限
@@ -182,8 +183,8 @@ IAM 权限更改通常立即生效，但有时需要等待 1-2 分钟。
 ### 检查 4: 验证 Access Key
 
 确保 GitHub Secrets 中的 Access Key 是正确的：
-- `AWS_ACCESS_KEY_ID` = `AKIAUW4LOMD2F7BNAXGM`
-- `AWS_SECRET_ACCESS_KEY` = `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`
+- `AWS_ACCESS_KEY_ID` = `<你的 Access Key ID>`
+- `AWS_SECRET_ACCESS_KEY` = `<你的 Secret Access Key>`
 
 ---
 
@@ -232,4 +233,3 @@ IAM 权限更改通常立即生效，但有时需要等待 1-2 分钟。
 5. 重新运行工作流
 
 修复后，工作流应该能成功登录 ECR 并推送镜像！
-
