@@ -83,7 +83,20 @@ echo "✅ PostgreSQL deployed"
 # Wait for PostgreSQL
 echo ""
 echo "⏳ Waiting for PostgreSQL to be ready..."
-kubectl wait --for=condition=ready pod -l app=postgresql -n microservices --timeout=120s || true
+sleep 10  # Give it time to start
+for i in {1..24}; do
+    if kubectl get pod -l app=postgresql -n microservices &>/dev/null; then
+        POD_STATUS=$(kubectl get pod -l app=postgresql -n microservices -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
+        if [ "$POD_STATUS" = "Running" ]; then
+            echo "PostgreSQL is running!"
+            break
+        fi
+        echo "PostgreSQL status: $POD_STATUS (waiting... $i/24)"
+    else
+        echo "PostgreSQL pod not found yet... ($i/24)"
+    fi
+    sleep 5
+done
 
 # Create databases
 echo ""
@@ -136,9 +149,11 @@ spec:
   selector:
     app: rabbitmq
   ports:
-  - port: 5672
+  - name: amqp
+    port: 5672
     targetPort: 5672
-  - port: 15672
+  - name: management
+    port: 15672
     targetPort: 15672
 EOF
 echo "✅ RabbitMQ deployed"
