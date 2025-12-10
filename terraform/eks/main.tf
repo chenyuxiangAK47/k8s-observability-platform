@@ -309,7 +309,8 @@ output "cluster_security_group_id" {
 }
 
 output "node_security_group_id" {
-  value = aws_eks_node_group.main.resources[0].remote_security_group_id
+  value = try(aws_eks_node_group.main.resources[0].remote_security_group_id, null)
+  description = "Node group security group ID (may be null in newer provider versions)"
 }
 
 output "ecr_repositories" {
