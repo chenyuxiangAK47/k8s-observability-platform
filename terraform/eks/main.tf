@@ -308,9 +308,10 @@ output "cluster_security_group_id" {
   value = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
 }
 
+# Node security group ID - removed as it's not available in newer provider versions
 output "node_security_group_id" {
-  value = try(aws_eks_node_group.main.resources[0].remote_security_group_id, null)
-  description = "Node group security group ID (may be null in newer provider versions)"
+  value       = null
+  description = "Node group security group ID - use AWS Console or CLI to retrieve if needed"
 }
 
 output "ecr_repositories" {
