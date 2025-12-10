@@ -17,7 +17,6 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
   # ==================== Lint ====================
@@ -73,7 +72,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -90,16 +89,16 @@ jobs:
           file: ./services/${{ matrix.service }}/Dockerfile
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/${{ matrix.service }}:latest
-            ${{ env.ECR_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
-          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ matrix.service }}:buildcache
-          cache-to: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ matrix.service }}:buildcache,mode=max
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:latest
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:buildcache,mode=max
 
       - name: Show image tags
         run: |
           echo "Built and pushed:"
-          echo "${{ env.ECR_REGISTRY }}/${{ matrix.service }}:latest"
-          echo "${{ env.ECR_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}"
+          echo "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:latest"
+          echo "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:${{ github.sha }}"
 
   # ==================== Test ====================
   test:
