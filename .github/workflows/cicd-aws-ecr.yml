@@ -81,6 +81,23 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Ensure ECR repositories exist
+        run: |
+          set -euo pipefail
+          REPOS="user-service product-service order-service"
+          for repo in $REPOS; do
+            echo "Checking ECR repository: $repo"
+            if ! aws ecr describe-repositories --repository-names "$repo" --region us-east-1 >/dev/null 2>&1; then
+              echo "Creating ECR repository: $repo"
+              aws ecr create-repository \
+                --repository-name "$repo" \
+                --image-scanning-configuration scanOnPush=true \
+                --region us-east-1
+            else
+              echo "ECR repository $repo already exists"
+            fi
+          done
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
