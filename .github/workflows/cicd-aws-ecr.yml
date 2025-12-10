@@ -156,7 +156,7 @@ jobs:
           echo "Updating Helm values for all services..."
           
           # Set global image registry
-          yq eval -i ".global.imageRegistry = env(ECR_REGISTRY)" helm/microservices/values.yaml
+          yq eval -i ".global.imageRegistry = \"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com\"" helm/microservices/values.yaml
           
           # Update user-service
           yq eval -i ".userService.image.repository = \"user-service\"" helm/microservices/values.yaml
@@ -191,9 +191,9 @@ jobs:
             echo "## 🎉 CI/CD Pipeline Completed"
             echo ""
             echo "### 📦 Built and Pushed Images"
-            echo "- \`${{ env.ECR_REGISTRY }}/user-service:${{ github.sha }}\`"
-            echo "- \`${{ env.ECR_REGISTRY }}/product-service:${{ github.sha }}\`"
-            echo "- \`${{ env.ECR_REGISTRY }}/order-service:${{ github.sha }}\`"
+            echo "- \`${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/user-service:${{ github.sha }}\`"
+            echo "- \`${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/product-service:${{ github.sha }}\`"
+            echo "- \`${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/order-service:${{ github.sha }}\`"
             echo ""
             echo "### 🔄 GitOps Flow"
             echo "1. Docker images built and pushed to ECR"
