@@ -150,7 +150,7 @@ jobs:
       - name: Update Helm values with ECR image tags
         env:
           AWS_REGION: us-east-1
-          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
           echo "Updating Helm values for all services..."
