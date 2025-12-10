@@ -47,6 +47,9 @@ jobs:
         with:
           version: "3.13.0"
 
+      - name: Install PyYAML
+        run: pip install pyyaml
+
       - name: Validate Kubernetes YAML
         run: |
           python -c "import yaml, sys; [yaml.safe_load(open(f)) for f in ['helm/microservices/values.yaml']]"
@@ -91,7 +94,7 @@ jobs:
           tags: |
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:latest
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:buildcache
+          cache-from: type=registry,ref=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:buildcache,ignore-error=true
           cache-to: type=registry,ref=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:buildcache,mode=max
 
       - name: Show image tags
