@@ -40,3 +40,5 @@ Write-Host "   2. Try a different local port: kubectl port-forward -n monitoring
 Write-Host "   3. Use direct pod forwarding (Method 2 above)" -ForegroundColor White
 
 
+
+

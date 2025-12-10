@@ -40,3 +40,5 @@ spec:
       query: 'sum(rate(http_requests_total{service="user-service"}[2m]))'
 
 
+
+

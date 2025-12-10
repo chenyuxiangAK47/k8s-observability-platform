@@ -7,3 +7,5 @@ metadata:
     istio-injection: enabled  # 启用 Istio sidecar 自动注入
 
 
+
+

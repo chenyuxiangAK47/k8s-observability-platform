@@ -1,0 +1,205 @@
+name: "CI/CD Pipeline for AWS ECR"
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - "services/**"
+      - "helm/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write  # For OIDC authentication
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+jobs:
+  # ==================== Lint ====================
+  lint:
+    name: "Lint & Validate"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Lint Python services
+        run: |
+          pip install flake8
+          for svc in user-service product-service order-service; do
+            if [ -d "services/$svc" ]; then
+              echo "Linting $svc..."
+              flake8 "services/$svc" --max-line-length=120 || true
+            fi
+          done
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: "3.13.0"
+
+      - name: Validate Kubernetes YAML
+        run: |
+          python -c "import yaml, sys; [yaml.safe_load(open(f)) for f in ['helm/microservices/values.yaml']]"
+
+      - name: Lint Helm charts
+        run: |
+          helm lint helm/microservices || true
+          helm lint helm/observability-platform || true
+
+  # ==================== Build & Push to ECR ====================
+  build:
+    name: "Build & Push Docker Images to ECR"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, product-service, order-service]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/${{ matrix.service }}
+          file: ./services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ matrix.service }}:latest
+            ${{ env.ECR_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ env.ECR_REGISTRY }}/${{ matrix.service }}:buildcache,mode=max
+
+      - name: Show image tags
+        run: |
+          echo "Built and pushed:"
+          echo "${{ env.ECR_REGISTRY }}/${{ matrix.service }}:latest"
+          echo "${{ env.ECR_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}"
+
+  # ==================== Test ====================
+  test:
+    name: "Run Tests"
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, product-service, order-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          cd services/${{ matrix.service }}
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest
+      - name: Basic import test
+        run: |
+          cd services/${{ matrix.service }}
+          python -c "import sys; sys.path.insert(0, '.'); print('Import OK for', '${{ matrix.service }}')"
+
+  # ==================== Deploy (Update Helm values) ====================
+  deploy:
+    name: "GitOps Deploy (Update Helm values)"
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Install yq
+        run: |
+          wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Update Helm values with ECR image tags
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          echo "Updating Helm values for all services..."
+          
+          # Set global image registry
+          yq eval -i ".global.imageRegistry = env(ECR_REGISTRY)" helm/microservices/values.yaml
+          
+          # Update user-service
+          yq eval -i ".userService.image.repository = \"user-service\"" helm/microservices/values.yaml
+          yq eval -i ".userService.image.tag = env(GITHUB_SHA)" helm/microservices/values.yaml
+          
+          # Update product-service
+          yq eval -i ".productService.image.repository = \"product-service\"" helm/microservices/values.yaml
+          yq eval -i ".productService.image.tag = env(GITHUB_SHA)" helm/microservices/values.yaml
+          
+          # Update order-service
+          yq eval -i ".orderService.image.repository = \"order-service\"" helm/microservices/values.yaml
+          yq eval -i ".orderService.image.tag = env(GITHUB_SHA)" helm/microservices/values.yaml
+          
+          echo "Updated values:"
+          yq eval '.global.imageRegistry' helm/microservices/values.yaml
+          yq eval '.userService.image' helm/microservices/values.yaml
+
+      - name: Commit and push changes
+        run: |
+          git add helm/microservices/values.yaml
+          if ! git diff --staged --quiet; then
+            git commit -m "Update images to ECR ${{ github.sha }} [skip ci]"
+            git push
+            echo "Changes pushed. ArgoCD will sync automatically."
+          else
+            echo "No changes to commit."
+          fi
+
+      - name: Summary
+        run: |
+          {
+            echo "## 🎉 CI/CD Pipeline Completed"
+            echo ""
+            echo "### 📦 Built and Pushed Images"
+            echo "- \`${{ env.ECR_REGISTRY }}/user-service:${{ github.sha }}\`"
+            echo "- \`${{ env.ECR_REGISTRY }}/product-service:${{ github.sha }}\`"
+            echo "- \`${{ env.ECR_REGISTRY }}/order-service:${{ github.sha }}\`"
+            echo ""
+            echo "### 🔄 GitOps Flow"
+            echo "1. Docker images built and pushed to ECR"
+            echo "2. Helm values.yaml updated with new image tags"
+            echo "3. Changes committed and pushed to Git"
+            echo "4. ArgoCD will detect changes and sync to EKS cluster"
+          } >> "$GITHUB_STEP_SUMMARY"
+

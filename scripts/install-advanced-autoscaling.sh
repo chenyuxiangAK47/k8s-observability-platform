@@ -66,3 +66,5 @@ echo "   kubectl get scaledobject -n microservices"
 echo ""
 
 
+
+

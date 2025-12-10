@@ -22,3 +22,5 @@ spec:
     mode: PERMISSIVE  # 集群级别使用 PERMISSIVE，命名空间级别使用 STRICT
 
 
+
+

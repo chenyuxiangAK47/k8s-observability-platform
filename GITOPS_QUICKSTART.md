@@ -232,3 +232,5 @@ kubectl create secret docker-registry ghcr-secret \
 
 
 
+
+

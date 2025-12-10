@@ -194,3 +194,5 @@ echo -e "  Order Service:   kubectl port-forward -n microservices svc/order-serv
 
 
 
+
+

@@ -116,3 +116,5 @@ Write-Host "`nYou can now run kubectl commands:" -ForegroundColor Yellow
 Write-Host "kubectl get pods -A" -ForegroundColor White
 Write-Host "kubectl get nodes" -ForegroundColor White
 
+
+

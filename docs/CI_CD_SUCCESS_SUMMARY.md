@@ -198,3 +198,5 @@ kubectl get pods -n microservices -l app=user-service -o jsonpath='{.items[0].sp
 
 **你已经非常接近完成了，继续加油！** 💪
 
+
+

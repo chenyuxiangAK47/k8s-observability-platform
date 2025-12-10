@@ -345,3 +345,5 @@ kubectl port-forward -n observability $pod 16686:16686
 **记住**：可观测性是一个实践性很强的技能，多动手操作比只看文档更有效！
 
 
+
+

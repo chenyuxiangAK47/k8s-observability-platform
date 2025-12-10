@@ -45,3 +45,5 @@ echo "   ./scripts/canary-deployment.sh ${SERVICE_NAME} ${NAMESPACE} 50 50  # 50
 echo "   ./scripts/canary-deployment.sh ${SERVICE_NAME} ${NAMESPACE} 0 100  # 100% v2"
 
 
+
+

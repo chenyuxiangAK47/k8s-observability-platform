@@ -60,3 +60,5 @@ Write-Host "   kubectl get scaledobject -n microservices" -ForegroundColor White
 Write-Host ""
 
 
+
+
